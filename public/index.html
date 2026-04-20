@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>无障碍出行伴侣 · 城市版</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <!-- 状态栏 -->
+    <div id="status">👋 欢迎使用无障碍出行伴侣</div>
+
+    <!-- 路线规划功能（左侧垂直版） -->
+    <div id="search-panel"
+        style="position: fixed; top: 80px; left: 12px; width: 280px; z-index: 1001; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); padding: 16px; border-radius: 24px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="text" id="startAddress" placeholder="起点（例如：南华大学雨母校区西门）"
+                style="width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 30px; font-size: 14px; box-sizing: border-box;">
+            <div style="text-align: center; font-size: 18px; color: #007aff;">↓</div>
+            <input type="text" id="endAddress" placeholder="终点（例如：南华大学雨母校区图书馆）"
+                style="width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 30px; font-size: 14px; box-sizing: border-box;">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button id="searchRouteBtn"
+                style="flex: 1; padding: 12px 0; border-radius: 30px; background: #007aff; color: white; border: none; font-weight: bold; cursor: pointer;">🔍
+                规划</button>
+            <button id="clearRouteBtn"
+                style="flex: 1; padding: 12px 0; border-radius: 30px; background: #ff3b30; color: white; border: none; font-weight: bold; cursor: pointer;">🗑️
+                清除</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+            <label style="font-size: 13px; display: flex; align-items: center; gap: 8px;"><input type="checkbox"
+                    id="wheelchairModeSearch" checked> ♿ 轮椅优先（避开台阶/障碍）</label>
+            <button id="useMyLocationBtn"
+                style="background: #e9ecef; border: none; color: #007aff; font-size: 13px; padding: 8px; border-radius: 30px; cursor: pointer;">📍
+                使用我的位置</button>
+        </div>
+    </div>
+
+    <!-- 底部控制面板 -->
+    <div id="control-panel">
+        <button id="voiceBtn" title="语音导航">🎤 语音</button>
+        <button id="sosBtn" title="一键求助">🆘 SOS</button>
+        <button id="reportBtn" title="上报障碍物">📝 上报</button>
+        <button id="contrastBtn" title="高对比度模式">🌓 高对比</button>
+        <a href="admin.html" target="_blank" title="管理员面板">⚙️ 管理</a>
+        <button id="locateBtn" title="定位当前位置">📍 定位</button>
+    </div>
+
+    <!-- 数据看板按钮（悬浮） -->
+    <button id="statsBtn"
+        style="position:fixed; bottom:80px; right:10px; z-index:1001; background:#007aff; color:white; border:none; padding:12px 16px; border-radius:40px; font-weight:bold; cursor:pointer;">📊
+        数据看板</button>
+
+    <!-- 路径规划偏好面板（成员A新增） -->
+    <div id="routePrefPanel">
+        <div class="pref-title">🚀 路径规划偏好</div>
+        <div class="pref-item">
+            <label>♿ 轮椅优先模式</label>
+            <input type="checkbox" id="wheelchairMode" checked>
+        </div>
+        <div class="pref-item">
+            <label>📈 坡道偏好 (优先选择有坡道路段)</label>
+            <input type="checkbox" id="rampPrefer">
+        </div>
+        <div class="pref-item">
+            <label>🚫 避开障碍类型:</label>
+            <div class="obstacle-types">
+                <label><input type="checkbox" value="台阶" class="avoid-type"> 台阶</label>
+                <label><input type="checkbox" value="坡道损坏" class="avoid-type"> 坡道损坏</label>
+                <label><input type="checkbox" value="盲道被占" class="avoid-type"> 盲道被占</label>
+                <label><input type="checkbox" value="电梯故障" class="avoid-type"> 电梯故障</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 实时设施状态面板（成员A新增）- 增加台阶和盲道信息 -->
+    <div id="facilityPanel" class="facility-panel">
+        <div class="panel-header">🏢 实时设施状态 <span id="refreshIndicator">🟢 动态更新</span></div>
+        <div id="facilityList"></div>
+    </div>
+
+    <!-- 隐私声明模态框（首次访问） -->
+    <div id="privacyModal" class="modal" style="display:flex;">
+        <div class="modal-content">
+            <h3>🔒 隐私保护声明</h3>
+            <p>您的所有数据（位置、上报记录、照片）仅存储在您的手机本地，不会上传至任何服务器。您可以随时清除数据。</p>
+<button id="agreePrivacy" class="btn-primary" onclick="document.getElementById('privacyModal').style.display='none'">同意并继续</button>
+            <a href="privacy.html" target="_blank" style="margin-left:10px;">了解更多</a>
+        </div>
+    </div>
+
+    <!-- 数据看板模态框 -->
+    <div id="chartModal" class="modal">
+        <div class="modal-content large">
+            <span id="closeModal" class="close-btn">&times;</span>
+            <h3>📈 社区影响力数据</h3>
+            <div id="coverageChart" style="height:250px;"></div>
+            <div id="trendChart" style="height:250px;"></div>
+        </div>
+    </div>
+
+    <!-- 障碍上报模态框 -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeReportModal">&times;</span>
+            <h3>📝 上报障碍物</h3>
+            <div id="reportLocationInfo"
+                style="background: #f0f7ff; padding: 10px; border-radius: 12px; margin-bottom: 15px; font-size: 14px;">
+                <strong>📍 障碍物所在地点：</strong><br>
+                <span id="reportLocationName">正在获取位置...</span><br>
+                <span id="reportLocationCoords" style="color: #666;"></span>
+            </div>
+            <form id="reportForm">
+                <form id="reportForm">
+                    <label>障碍类型：</label>
+                    <select id="obstacleType" required>
+                        <option value="台阶">台阶</option>
+                        <option value="坡道损坏">坡道损坏</option>
+                        <option value="盲道被占">盲道被占</option>
+                        <option value="电梯故障">电梯故障</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    <label>描述（选填）：</label>
+                    <input type="text" id="obstacleDesc" placeholder="例如：图书馆门口三级台阶">
+                    <label>拍照上传：</label>
+                    <input type="file" id="obstaclePhoto" accept="image/*" capture="environment">
+                    <img id="photoPreview" style="max-width:100%; max-height:150px; display:none; margin-top:5px;">
+                    <input type="hidden" id="obstacleLat">
+                    <input type="hidden" id="obstacleLng">
+                    <p id="locationHint">📍 将使用当前地图中心位置</p>
+                    <button type="submit" class="btn-primary">提交上报</button>
+                </form>
+        </div>
+    </div>
+
+    <!-- 清除数据按钮 -->
+    <button id="clearDataBtn"
+        style="position:fixed; bottom:20px; right:10px; background:#6c757d; color:white; border:none; padding:12px 16px; border-radius:40px; font-weight:bold; cursor:pointer;">🗑️
+        清除我的数据</button>
+
+    <script src="mockData.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
