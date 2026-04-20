@@ -8,19 +8,27 @@ const PORT = process.env.PORT || 3000;
 
 // 中间件
 app.use(cors());
-app.use(bodyParser.json({ limit: '10mb' })); // 支持 base64 图片
+app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 路由
+// 路由引入
 const obstaclesRouter = require('./routes/obstacles');
 const poiRouter = require('./routes/poi');
 const uploadRouter = require('./routes/upload');
+const { router: authRouter } = require('./routes/auth');
 
+// API 路由注册
+app.use('/api/auth', authRouter);
 app.use('/api/obstacles', obstaclesRouter);
 app.use('/api/poi', poiRouter);
 app.use('/api/upload', uploadRouter);
 
-// 所有其他请求返回 index.html（支持 SPA）
+// 根路径重定向到 index.html（可选）
+app.get('/', (req, res) => {
+    res.redirect('/index.html');
+});
+
+// 404 处理（必须放在所有 API 路由之后）
 app.use((req, res) => {
     res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
 });

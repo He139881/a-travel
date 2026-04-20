@@ -1,8 +1,7 @@
-// ==============================================
-// 南华大学雨母校区 - 真实数据（来自高德地图坐标拾取）
-// ==============================================
+const db = require('./database');
+const bcrypt = require('bcryptjs');
 
-// POI数据（兴趣点）- 基于真实校园建筑坐标
+// 从 mockData.js 提取的 POI 数据（简化版，实际可 require 该文件）
 const poiList = [
     // 校门
     { id: 1, name: "西门", lat: 26.875201, lng: 112.516666, score: 4.5, hasElevator: false, hasRamp: true, hasTactilePaving: true, hasStairs: true, type: "校门" },
@@ -41,7 +40,7 @@ const poiList = [
     // 宿舍（三省园）
     { id: 23, name: "三省园一栋", lat: 26.882568, lng: 112.513187, score: 3.8, hasElevator: false, hasRamp: true, hasTactilePaving: false, hasStairs: true, type: "宿舍" },
     { id: 24, name: "三省园二栋", lat: 26.882930, lng: 112.513925, score: 3.7, hasElevator: false, hasRamp: true, hasTactilePaving: false, hasStairs: true, type: "宿舍" },
-    { id: 25, name: "三省园三栋", lat: 26.883058, lng: 112.514628, score: 3.8, hasElevator: false, hasRamp: true, hasTactilePaving: false, hasStairs: true, type: "宿舍" },
+    { id: 25, name: "三省园三栋", lat: 26.883058, lng: 112.514628, score: 3.8, hasElevator: false, hasRamp: false, hasTactilePaving: false, hasStairs: false, type: "宿舍" },
     { id: 26, name: "三省园四栋", lat: 26.883172, lng: 112.515132, score: 3.9, hasElevator: false, hasRamp: true, hasTactilePaving: true, hasStairs: true, type: "宿舍" },
     { id: 27, name: "三省园五栋", lat: 26.882111, lng: 112.511751, score: 3.8, hasElevator: false, hasRamp: true, hasTactilePaving: true, hasStairs: true, type: "宿舍" },
     { id: 28, name: "三省园六栋", lat: 26.883917, lng: 112.515627, score: 3.9, hasElevator: false, hasRamp: true, hasTactilePaving: true, hasStairs: true, type: "宿舍" },
@@ -80,34 +79,38 @@ const poiList = [
     { id: 53, name: "皇迪炸鸡腿", lat: 26.882522, lng: 112.512725, score: 4.0, hasElevator: false, hasRamp: true, hasTactilePaving: false, hasStairs: true, type: "商业" },
 ];
 
-// 设施状态（基于真实POI名称）
-let facilityStatus = {};
+// 生成设施状态
+const facilityStatusList = poiList.map(poi => ({
+    poi_name: poi.name,
+    elevator: poi.hasElevator ? '正常' : '无',
+    ramp: poi.hasRamp ? '正常' : '无',
+    tactilePaving: poi.hasTactilePaving ? '有' : '无',
+    stairs: poi.hasStairs ? '有台阶' : '无台阶'
+}));
 
-// 自动生成设施状态（默认所有POI设施正常）
-poiList.forEach(poi => {
-    facilityStatus[poi.name] = {
-        elevator: poi.hasElevator ? "正常" : "无",
-        ramp: poi.hasRamp ? "正常" : "无",
-        tactilePaving: poi.hasTactilePaving ? "有" : "无",
-        stairs: poi.hasStairs ? "有台阶" : "无台阶"
-    };
+db.serialize(() => {
+    // 插入 POI
+    const stmtPoi = db.prepare(`INSERT OR REPLACE INTO poi 
+        (id, name, lat, lng, score, hasElevator, hasRamp, hasTactilePaving, hasStairs, type) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    
+    poiList.forEach(p => {
+        stmtPoi.run(p.id, p.name, p.lat, p.lng, p.score, 
+            p.hasElevator ? 1 : 0, p.hasRamp ? 1 : 0, 
+            p.hasTactilePaving ? 1 : 0, p.hasStairs ? 1 : 0, p.type);
+    });
+    stmtPoi.finalize();
+
+    // 插入设施状态
+    const stmtStatus = db.prepare(`INSERT OR REPLACE INTO facility_status 
+        (poi_name, elevator, ramp, tactilePaving, stairs) VALUES (?, ?, ?, ?, ?)`);
+    
+    facilityStatusList.forEach(s => {
+        stmtStatus.run(s.poi_name, s.elevator, s.ramp, s.tactilePaving, s.stairs);
+    });
+    stmtStatus.finalize();
+
+    console.log('✅ 种子数据导入完成');
 });
 
-// 障碍物数据（真实上报需要用户实际提交，这里保留为空数组，让用户上报）
-let obstacles = [];
-
-function loadObstacles() {
-    // 从后端加载障碍物
-}
-
-// 存储高对比度偏好
-function saveContrastPref(enabled) {
-    localStorage.setItem('highContrast', enabled);
-}
-
-function loadContrastPref() {
-    return localStorage.getItem('highContrast') === 'true';
-}
-
-// 通知权限状态
-let notificationEnabled = false;
+db.close();

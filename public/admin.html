@@ -15,57 +15,142 @@
     <!-- PDF导出库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* 新增 Tab 样式 */
+        .admin-tabs {
+            display: flex;
+            padding: 0 20px;
+            gap: 10px;
+            border-bottom: 1px solid #ddd;
+            background: white;
+            margin: 0 20px;
+            border-radius: 20px 20px 0 0;
+        }
+        .tab-btn {
+            padding: 14px 28px;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            border-radius: 20px 20px 0 0;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            color: #007aff;
+            background: white;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            font-weight: 600;
+        }
+        .tab-content {
+            background: #f5f7fa;
+            padding-bottom: 20px;
+        }
+        .tab-content.hidden {
+            display: none;
+        }
+        /* 退出登录按钮样式 */
+        .logout-btn {
+            background: #ff3b30;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        /* POI 表格内操作按钮 */
+        .action-btn {
+            padding: 4px 10px;
+            margin: 2px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .edit-btn {
+            background: #007aff;
+            color: white;
+        }
+        .delete-btn {
+            background: #ff3b30;
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <div class="admin-header">
         <h1>🚧 无障碍社区互助后台</h1>
         <div>
+            <span id="adminNameDisplay" style="margin-right: 15px; color: #666;"></span>
             <button id="requestNotifyBtn" class="btn-secondary">🔔 开启通知</button>
             <a href="index.html" class="btn-back">← 返回用户端</a>
+            <button id="logoutBtn" class="logout-btn">🚪 退出登录</button>
         </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-cards">
-        <div class="card"><h3>总上报</h3><div id="totalCount">0</div></div>
-        <div class="card"><h3>待处理</h3><div id="pendingCount">0</div></div>
-        <div class="card"><h3>处理中</h3><div id="processingCount">0</div></div>
-        <div class="card"><h3>已完成</h3><div id="resolvedCount">0</div></div>
+    <!-- Tab 切换栏 -->
+    <div class="admin-tabs">
+        <button class="tab-btn active" data-tab="obstacles">🚧 障碍物管理</button>
+        <button class="tab-btn" data-tab="poi">🏢 POI 管理</button>
     </div>
 
-    <!-- 图表与地图并排 -->
-    <div class="charts-container">
-        <div id="typeChart" style="height:250px;"></div>
-        <div id="trendChartAdmin" style="height:250px;"></div>
+    <!-- 障碍物管理 Tab -->
+    <div id="obstaclesTab" class="tab-content">
+        <!-- 统计卡片 -->
+        <div class="stats-cards">
+            <div class="card"><h3>总上报</h3><div id="totalCount">0</div></div>
+            <div class="card"><h3>待处理</h3><div id="pendingCount">0</div></div>
+            <div class="card"><h3>处理中</h3><div id="processingCount">0</div></div>
+            <div class="card"><h3>已完成</h3><div id="resolvedCount">0</div></div>
+        </div>
+
+        <!-- 图表与地图并排 -->
+        <div class="charts-container">
+            <div id="typeChart" style="height:250px;"></div>
+            <div id="trendChartAdmin" style="height:250px;"></div>
+        </div>
+
+        <!-- 热力图地图容器 -->
+        <div style="padding:0 20px; margin-bottom:20px;">
+            <h3>🔥 障碍物热力分布 <span style="font-size:14px; font-weight:normal; margin-left:10px;">颜色越深上报越密集</span></h3>
+            <div id="heatmapContainer" style="height:250px; width:100%; border-radius:20px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);"></div>
+        </div>
+
+        <!-- 批量操作与筛选 -->
+        <div class="filter-bar">
+            <input type="text" id="searchInput" placeholder="搜索类型或描述...">
+            <select id="statusFilter">
+                <option value="all">全部状态</option>
+                <option value="未处理">未处理</option>
+                <option value="处理中">处理中</option>
+                <option value="已完成">已完成</option>
+            </select>
+            <select id="batchAction" style="width:auto;">
+                <option value="">批量操作</option>
+                <option value="processing">标记为处理中</option>
+                <option value="resolved">标记为已完成</option>
+            </select>
+            <button id="applyBatchBtn" class="btn-secondary">应用</button>
+            <button id="exportReportBtn" class="btn-secondary">📄 导出PDF周报</button>
+            <button id="refreshBtn" class="btn-primary">🔄 刷新</button>
+        </div>
+
+        <!-- 障碍物表格 -->
+        <div id="obstacleTable" class="table-container"></div>
     </div>
 
-    <!-- 热力图地图容器 -->
-    <div style="padding:0 20px; margin-bottom:20px;">
-        <h3>🔥 障碍物热力分布 <span style="font-size:14px; font-weight:normal; margin-left:10px;">颜色越深上报越密集</span></h3>
-        <div id="heatmapContainer" style="height:250px; width:100%; border-radius:20px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);"></div>
+    <!-- POI 管理 Tab -->
+    <div id="poiTab" class="tab-content hidden">
+        <div style="padding: 20px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button id="addPoiBtn" class="btn-primary" style="width: auto; padding: 10px 20px;">➕ 新增 POI</button>
+                <button id="refreshPoiBtn" class="btn-secondary" style="width: auto; padding: 10px 20px;">🔄 刷新</button>
+            </div>
+            <div id="poiTableContainer" class="table-container"></div>
+        </div>
     </div>
-
-    <!-- 批量操作与筛选 -->
-    <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="搜索类型或描述...">
-        <select id="statusFilter">
-            <option value="all">全部状态</option>
-            <option value="未处理">未处理</option>
-            <option value="处理中">处理中</option>
-            <option value="已完成">已完成</option>
-        </select>
-        <select id="batchAction" style="width:auto;">
-            <option value="">批量操作</option>
-            <option value="processing">标记为处理中</option>
-            <option value="resolved">标记为已完成</option>
-        </select>
-        <button id="applyBatchBtn" class="btn-secondary">应用</button>
-        <button id="exportReportBtn" class="btn-secondary">📄 导出PDF周报</button>
-        <button id="refreshBtn" class="btn-primary">🔄 刷新</button>
-    </div>
-
-    <!-- 障碍物表格 -->
-    <div id="obstacleTable" class="table-container"></div>
 
     <!-- 照片查看模态框 -->
     <div id="photoModal" class="modal">
@@ -96,7 +181,38 @@
         </div>
     </div>
 
-    <script src="mockData.js"></script>
+    <!-- 设施状态编辑模态框（简单实现，也可用 prompt，此处用自定义简化版） -->
+    <div id="facilityEditModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-btn" id="closeFacilityModal">&times;</span>
+            <h3>编辑设施状态</h3>
+            <input type="hidden" id="editPoiName">
+            <label>电梯状态：</label>
+            <select id="editElevator">
+                <option value="正常">正常</option>
+                <option value="维修中">维修中</option>
+                <option value="无">无</option>
+            </select>
+            <label>坡道状态：</label>
+            <select id="editRamp">
+                <option value="正常">正常</option>
+                <option value="维修中">维修中</option>
+                <option value="无">无</option>
+            </select>
+            <label>盲道：</label>
+            <select id="editTactilePaving">
+                <option value="有">有</option>
+                <option value="无">无</option>
+            </select>
+            <label>台阶情况：</label>
+            <select id="editStairs">
+                <option value="无台阶">无台阶</option>
+                <option value="有台阶">有台阶</option>
+            </select>
+            <button id="saveFacilityBtn" class="btn-primary" style="margin-top: 15px;">保存</button>
+        </div>
+    </div>
+
     <script src="admin.js"></script>
 </body>
 </html>

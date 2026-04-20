@@ -1,8 +1,31 @@
 // 高德地图 API 配置
 const AMAP_KEY = '2c5385f0963e09c03c60546742d12f0c';
-
-// API 基础地址（开发时用 localhost，部署时替换为域名）
 const API_BASE = 'http://localhost:3000/api';
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+function isLoggedIn() {
+    return !!localStorage.getItem('token');
+}
+
+function requireLogin(action) {
+    if (!isLoggedIn()) {
+        if (confirm('此功能需要登录，是否前往登录？')) {
+            window.location.href = 'login.html';
+        }
+        return false;
+    }
+    return true;
+}
+
+
+
+// ========== 全局数据变量（由 loadPoiFromServer 填充） ==========
+let poiList = [];
+let facilityStatus = {};
+let obstacles = [];
 
 // ========== 坐标系转换（GCJ-02 转 WGS-84）==========
 // 高德/百度/腾讯地图使用的是 GCJ-02 坐标系
@@ -139,35 +162,33 @@ async function loadPoiFromServer() {
         ]);
         if (poiRes.ok) {
             const pois = await poiRes.json();
-            // 将 poiList 替换为后端数据
-            poiList.length = 0;
-            poiList.push(...pois);
+            console.log('✅ POI 数据已加载，数量:', pois.length);  // 调试用
+            poiList = pois;
+            window.poiList = pois;
         }
         if (statusRes.ok) {
             const status = await statusRes.json();
-            // 合并到 facilityStatus
-            Object.assign(facilityStatus, status);
+            facilityStatus = status;
+            window.facilityStatus = status;
         }
+        return true;
     } catch (err) {
-        console.warn('加载 POI 失败，使用本地 mock 数据', err);
+        console.error('❌ 加载 POI 失败', err);
+        return false;
     }
 }
-
-
-
 function initMap() {
-    map = L.map('map').setView([31.2304, 121.4737], 14); // 默认中心（作为后备）
+    map = L.map('map').setView([26.879, 112.516], 15); // 南华大学雨母校区
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap'
     }).addTo(map);
     
-    // 添加缩放监听 - 同时控制POI和障碍物
     map.on('zoomend', function() {
-        updateMarkersByZoom();      // 控制绿色POI标记和校园总标记
-        updateObstaclesByZoom();    // 控制黄色障碍物标记
+        updateMarkersByZoom();
+        updateObstaclesByZoom();
     });
     
-    locateAndSetView();
+    locateAndSetView(); // 会自动覆盖为定位位置，不影响
 }
 
 // 新增函数：自动定位并设置地图视图（静默执行，不弹出提示）
@@ -1109,11 +1130,18 @@ document.getElementById('reportForm').addEventListener('submit', async (e) => {
     }
 });
 });
+// 高对比度偏好存储
+function saveContrastPref(enabled) {
+    localStorage.setItem('highContrast', enabled);
+}
 
+function loadContrastPref() {
+    return localStorage.getItem('highContrast') === 'true';
+}
 window.onload = async () => {
     initMap();
      await loadPoiFromServer();
-    await loadObstaclesFromServer();
+     await loadObstaclesFromServer();
     
     addPoiMarkers();
     updateObstacleMarkers();
@@ -1157,7 +1185,6 @@ document.getElementById('voiceBtn').onclick = toggleVoiceRecognition;
         const randomKey = keys[Math.floor(Math.random() * keys.length)];
         const newElevator = Math.random() > 0.5 ? "正常" : "维修中";
         const newRamp = Math.random() > 0.5 ? "正常" : "维修中";
-        facilityStatus[randomKey] = { elevator: newElevator, ramp: newRamp };
         poiMarkers.forEach((marker, idx) => { marker.getPopup().setContent(createPopupContent(poiList[idx])); });
         renderFacilityPanel();
         document.getElementById('refreshIndicator').style.opacity = '0.6';
@@ -1523,51 +1550,6 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     }
 });
-
-window.onload = () => {
-    initMap();
-    addPoiMarkers();
-    updateObstacleMarkers();
-    renderFacilityPanel();
-    if (document.getElementById('voiceBtn')) document.getElementById('voiceBtn').onclick = toggleVoiceRecognition;
-    if (document.getElementById('sosBtn')) document.getElementById('sosBtn').onclick = sos;
-    if (document.getElementById('reportBtn')) document.getElementById('reportBtn').onclick = showReportModal;
-    if (document.getElementById('statsBtn')) document.getElementById('statsBtn').onclick = showStats;
-    if (document.getElementById('closeModal')) document.getElementById('closeModal').onclick = () => document.getElementById('chartModal').style.display = 'none';
-    if (document.getElementById('closeReportModal')) document.getElementById('closeReportModal').onclick = () => document.getElementById('reportModal').style.display = 'none';
-    if (document.getElementById('agreePrivacy')) document.getElementById('agreePrivacy').onclick = () => document.getElementById('privacyModal').style.display = 'none';
-    if (document.getElementById('locateBtn')) document.getElementById('locateBtn').onclick = locateUser;
-    if (document.getElementById('searchRouteBtn')) document.getElementById('searchRouteBtn').addEventListener('click', planRealRoute);
-    if (document.getElementById('useMyLocationBtn')) document.getElementById('useMyLocationBtn').addEventListener('click', useMyLocationAsStart);
-    if (document.getElementById('clearRouteBtn')) document.getElementById('clearRouteBtn').addEventListener('click', () => { clearRoute(); speak('路线已清除'); });
-    if (document.getElementById('contrastBtn')) {
-        if (loadContrastPref()) document.body.classList.add('high-contrast');
-        document.getElementById('contrastBtn').onclick = () => {
-            document.body.classList.toggle('high-contrast');
-            saveContrastPref(document.body.classList.contains('high-contrast'));
-        };
-    }
-    if (document.getElementById('clearDataBtn')) {
-        document.getElementById('clearDataBtn').onclick = () => {
-            if (confirm('清除所有本地数据？不可恢复。')) {
-                localStorage.clear();
-                location.reload();
-            }
-        };
-    }
-    window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
-    setInterval(() => {
-        const keys = Object.keys(facilityStatus);
-        const randomKey = keys[Math.floor(Math.random() * keys.length)];
-        const newElevator = Math.random() > 0.5 ? "正常" : "维修中";
-        const newRamp = Math.random() > 0.5 ? "正常" : "维修中";
-        facilityStatus[randomKey] = { elevator: newElevator, ramp: newRamp };
-        poiMarkers.forEach((marker, idx) => { if (marker && marker.getPopup) marker.getPopup().setContent(createPopupContent(poiList[idx])); });
-        renderFacilityPanel();
-        document.getElementById('refreshIndicator').style.opacity = '0.6';
-        setTimeout(() => document.getElementById('refreshIndicator').style.opacity = '1', 300);
-    }, 30000);
-};
 
 function speak(text) {
     if (!window.speechSynthesis) return;
