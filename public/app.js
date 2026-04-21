@@ -122,7 +122,7 @@ const speechManager = new SpeechManager();
 let recognition = null;
 let isListening = false;
 let inactivityTimer = null;
-const inactivityTimeout = 30000;
+const inactivityTimeout = 60000;
 let noSpeechCount = 0;
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -279,23 +279,27 @@ function locateAndSetView() {
             const lng = position.coords.longitude;
             map.setView([lat, lng], 16);
 
-            // 添加位置标记
             L.marker([lat, lng], {
                 icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] })
             }).addTo(map).bindPopup('您当前的位置').openPopup();
 
-            // 获取详细地址
-            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; // 默认显示坐标
+            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
             try {
                 const addr = await reverseGeocode(lat, lng);
                 if (addr) address = addr;
-            } catch (e) {
-                console.warn('逆地理编码失败:', e);
-            }
+            } catch (e) {}
 
             const successMsg = `📍 当前位置：${address}`;
             statusEl.innerText = successMsg;
             speak(successMsg);
+            
+            // 自动填充起点输入框（可选）
+            const startInput = document.getElementById('startAddress');
+            if (startInput) {
+                startInput.value = address;
+                startInput.dataset.location = `${lng},${lat}`;
+                startInput.dataset.name = '我的位置';
+            }
         },
         (error) => {
             console.warn("自动定位失败:", error.message);
@@ -305,7 +309,7 @@ function locateAndSetView() {
             statusEl.innerText = msg;
             map.setView([26.879, 112.516], 15);
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 } // 延长超时
     );
 }
 
@@ -411,15 +415,15 @@ function updateVoiceButtonState() {
     if (isListening) {
         voiceBtn.innerHTML = '🎤 录音中...';
         voiceBtn.style.background = '#ff3b30';
+        voiceBtn.style.color = 'white';
     } else if (speechManager.isSpeaking) {
-        voiceBtn.innerHTML = '🔊 播报中...';
+        voiceBtn.innerHTML = '🔊 播报中';
         voiceBtn.style.background = '#34c759';
-    } else if (speechManager.isPaused) {
-        voiceBtn.innerHTML = '⏸️ 已暂停';
-        voiceBtn.style.background = '#ff9500';
+        voiceBtn.style.color = 'white';
     } else {
         voiceBtn.innerHTML = '🎤 语音';
         voiceBtn.style.background = '';
+        voiceBtn.style.color = '';
     }
 }
 
@@ -1259,21 +1263,26 @@ function startListening() {
         isListening = true;
         noSpeechCount = 0;
         updateVoiceButtonState();
-        document.getElementById('statusText').innerText = '🎙️ 持续监听中，您可以说话...';
+        document.getElementById('statusText').innerText = '🎙️ 正在聆听... 说出您的需求';
         resetInactivityTimer();
+        
+        // 显示语音指令提示（首次使用时）
+        const hintShown = localStorage.getItem('voiceHintShown');
+        if (!hintShown) {
+            setTimeout(() => {
+                document.getElementById('voiceHintPanel').style.display = 'block';
+                localStorage.setItem('voiceHintShown', 'true');
+            }, 500);
+        }
         return true;
     } catch (e) {
         console.error("启动语音识别失败:", e);
-        if (e.message && e.message.includes('start')) {
-            try { recognition.stop(); } catch (ex) { }
-            setTimeout(() => startListening(), 500);
-        }
         return false;
     }
 }
 function stopListening() {
     if (recognition && isListening) {
-        try { recognition.stop(); } catch (e) { }
+        try { recognition.stop(); } catch (e) {}
         isListening = false;
         if (inactivityTimer) clearTimeout(inactivityTimer);
         updateVoiceButtonState();
@@ -1291,16 +1300,17 @@ function stopSpeaking() {
     speechManager.stop();
 }
 function toggleVoiceRecognition() {
+    // 如果正在播报，先暂停播报
     if (speechManager.isSpeaking) {
         speechManager.pause();
-        speak("语音播报已暂停，您可以继续说出指令。");
-        return;
+        speak("语音播报已暂停，您可以说话");
     }
+    
     if (isListening) {
         stopListening();
-        return;
+    } else {
+        startListening();
     }
-    startListening();
 }
 
 // ========== 其他功能 ==========

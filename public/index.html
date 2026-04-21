@@ -162,6 +162,35 @@
         style="position:fixed; bottom:20px; right:10px; background:#6c757d; color:white; border:none; padding:12px 16px; border-radius:40px; font-weight:bold; cursor:pointer;">🗑️
         清除我的数据</button>
     <script src="app.js"></script>
+    <!-- 语音指令提示面板 -->
+<div id="voiceHintPanel" style="position: fixed; bottom: 140px; left: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 20px; z-index: 2000; display: none; max-width: 400px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h4 style="margin:0;">🎤 您可以这样说</h4>
+        <button onclick="document.getElementById('voiceHintPanel').style.display='none'" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
+        <span class="voice-cmd" onclick="document.getElementById('endAddress').value='图书馆'; speak('导航到图书馆'); planRealRoute();">📖 导航到图书馆</span>
+        <span class="voice-cmd" onclick="document.getElementById('endAddress').value='食堂'; speak('导航到食堂'); planRealRoute();">🍜 导航到食堂</span>
+        <span class="voice-cmd" onclick="speak('附近的电梯'); queryFacility('电梯')">🛗 找电梯</span>
+        <span class="voice-cmd" onclick="speak('附近的坡道'); queryFacility('坡道')">♿ 找坡道</span>
+        <span class="voice-cmd" onclick="speak('我要去西门'); executeNavigate('西门')">🚪 去西门</span>
+    </div>
+    <p style="font-size:12px; margin-top:10px; opacity:0.7;">点击上方标签可快速执行，或直接说出指令</p>
+</div>
+
+<style>
+.voice-cmd {
+    background: #007aff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.voice-cmd:hover {
+    background: #005bb5;
+}
+</style>
 </body>
 
 </html>
