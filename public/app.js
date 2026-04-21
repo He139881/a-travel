@@ -2,6 +2,103 @@
 const AMAP_KEY = '2c5385f0963e09c03c60546742d12f0c';
 const API_BASE = 'http://localhost:3000/api';
 
+// ========== 坐标系转换（WGS-84 → GCJ-02，用于GPS定位） ==========
+const a = 6378245.0;
+const ee = 0.00669342162296594323;
+
+function outOfChina(lat, lng) {
+    return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+}
+
+function transformLat(lng, lat) {
+    let ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + 0.1 * lng * lat + 0.2 * Math.sqrt(Math.abs(lng));
+    ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(lat * Math.PI) + 40.0 * Math.sin(lat / 3.0 * Math.PI)) * 2.0 / 3.0;
+    ret += (160.0 * Math.sin(lat / 12.0 * Math.PI) + 320 * Math.sin(lat * Math.PI / 30.0)) * 2.0 / 3.0;
+    return ret;
+}
+
+function transformLng(lng, lat) {
+    let ret = 300.0 + lng + 2.0 * lat + 0.1 * lng * lng + 0.1 * lng * lat + 0.1 * Math.sqrt(Math.abs(lng));
+    ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(lng * Math.PI) + 40.0 * Math.sin(lng / 3.0 * Math.PI)) * 2.0 / 3.0;
+    ret += (150.0 * Math.sin(lng / 12.0 * Math.PI) + 300.0 * Math.sin(lng / 30.0 * Math.PI)) * 2.0 / 3.0;
+    return ret;
+}
+
+function wgs84ToGcj02(lng, lat) {
+    if (outOfChina(lat, lng)) return [lng, lat];
+    let dlat = transformLat(lng - 105.0, lat - 35.0);
+    let dlng = transformLng(lng - 105.0, lat - 35.0);
+    let radlat = lat / 180.0 * Math.PI;
+    let magic = Math.sin(radlat);
+    magic = 1 - ee * magic * magic;
+    let sqrtmagic = Math.sqrt(magic);
+    dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * Math.PI);
+    dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * Math.PI);
+    return [lng + dlng, lat + dlat];
+}
+
+
+let roadSegments = [];           // 自定义道路线段
+let roadLayers = [];             // 地图上的道路图层
+
+async function loadRoadSegments() {
+    try {
+        const res = await fetch(`${API_BASE}/roads`);
+        const data = await res.json();
+        roadSegments = data;
+        drawRoadSegments();
+    } catch (err) {
+        console.error('加载道路数据失败:', err);
+    }
+}
+
+function drawRoadSegments() {
+    // 清除旧图层
+    roadLayers.forEach(layer => map.removeLayer(layer));
+    roadLayers = [];
+    
+    roadSegments.forEach(seg => {
+        // 根据轮椅通行情况确定颜色
+        let color = '#888888'; // 默认灰色
+        let weight = 4;
+        
+        if (seg.wheelchair_passable === '是') {
+            color = '#34c759'; // 绿色 - 轮椅可通行
+        } else if (seg.wheelchair_passable === '否' || seg.wheelchair_passable === '否（有台阶）') {
+            color = '#ff3b30'; // 红色 - 轮椅不可通行（有台阶）
+        } else if (seg.segment_type === '坡道' || seg.wheelchair_passable === '坡道陡，仅电动轮椅可通行') {
+            color = '#ff9500'; // 橙色 - 坡道
+        } else if (seg.segment_type === '坡道台阶混合') {
+            color = '#ff9500'; // 橙色
+            weight = 5;
+        }
+        
+        const latlngs = [
+            [seg.start_lat, seg.start_lng],
+            [seg.end_lat, seg.end_lng]
+        ];
+        
+        const polyline = L.polyline(latlngs, {
+            color: color,
+            weight: weight,
+            opacity: 0.8,
+            className: 'custom-road'
+        }).addTo(map);
+        
+        // 添加弹出信息
+        let popupText = `<b>${seg.segment_type || '道路'}</b><br>`;
+        popupText += `轮椅通行: ${seg.wheelchair_passable}<br>`;
+        if (seg.notes) popupText += `备注: ${seg.notes}`;
+        polyline.bindPopup(popupText);
+        
+        roadLayers.push(polyline);
+    });
+    
+    console.log(`✅ 已绘制 ${roadSegments.length} 条自定义道路`);
+}
+
 // ========== 语音管理器（新增） ==========
 class SpeechManager {
     constructor() {
@@ -156,54 +253,6 @@ function requireLogin(action) {
     return true;
 }
 
-// ========== 坐标系转换 ==========
-const a = 6378245.0, ee = 0.00669342162296594323;
-function outOfChina(lat, lng) { return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271; }
-function transformLat(lng, lat) {
-    let ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + 0.1 * lng * lat + 0.2 * Math.sqrt(Math.abs(lng));
-    ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0;
-    ret += (20.0 * Math.sin(lat * Math.PI) + 40.0 * Math.sin(lat / 3.0 * Math.PI)) * 2.0 / 3.0;
-    ret += (160.0 * Math.sin(lat / 12.0 * Math.PI) + 320 * Math.sin(lat * Math.PI / 30.0)) * 2.0 / 3.0;
-    return ret;
-}
-function transformLng(lng, lat) {
-    let ret = 300.0 + lng + 2.0 * lat + 0.1 * lng * lng + 0.1 * lng * lat + 0.1 * Math.sqrt(Math.abs(lng));
-    ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0;
-    ret += (20.0 * Math.sin(lng * Math.PI) + 40.0 * Math.sin(lng / 3.0 * Math.PI)) * 2.0 / 3.0;
-    ret += (150.0 * Math.sin(lng / 12.0 * Math.PI) + 300.0 * Math.sin(lng / 30.0 * Math.PI)) * 2.0 / 3.0;
-    return ret;
-}
-function gcj02ToWgs84(lng, lat) {
-    if (outOfChina(lat, lng)) return [lng, lat];
-    let dlat = transformLat(lng - 105.0, lat - 35.0);
-    let dlng = transformLng(lng - 105.0, lat - 35.0);
-    let radlat = lat / 180.0 * Math.PI;
-    let magic = Math.sin(radlat);
-    magic = 1 - ee * magic * magic;
-    let sqrtmagic = Math.sqrt(magic);
-    dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * Math.PI);
-    dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * Math.PI);
-    let mglat = lat + dlat;
-    let mglng = lng + dlng;
-    return [lng * 2 - mglng, lat * 2 - mglat];
-}
-function convertPoiToWgs84(poi) {
-    const [wgsLng, wgsLat] = gcj02ToWgs84(poi.lng, poi.lat);
-    return { ...poi, lng: wgsLng, lat: wgsLat };
-}
-function wgs84ToGcj02(lng, lat) {
-    if (outOfChina(lat, lng)) return [lng, lat];
-    let dlat = transformLat(lng - 105.0, lat - 35.0);
-    let dlng = transformLng(lng - 105.0, lat - 35.0);
-    let radlat = lat / 180.0 * Math.PI;
-    let magic = Math.sin(radlat);
-    magic = 1 - ee * magic * magic;
-    let sqrtmagic = Math.sqrt(magic);
-    dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * Math.PI);
-    dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * Math.PI);
-    return [lng + dlng, lat + dlat];
-}
-
 // ========== 后端数据加载 ==========
 async function loadObstaclesFromServer() {
     try {
@@ -254,15 +303,20 @@ async function loadPoiFromServer() {
 // ========== 地图初始化 ==========
 function initMap() {
     map = L.map('map').setView([26.879, 112.516], 15);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap'
+    
+    // 高德地图瓦片（GCJ-02 坐标系）
+    L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+        subdomains: ['1', '2', '3', '4'],
+        attribution: '&copy; <a href="https://www.amap.com">高德地图</a>'
     }).addTo(map);
+    
     map.on('zoomend', () => {
         updateMarkersByZoom();
         updateObstaclesByZoom();
     });
     locateAndSetView();
 }
+
 function locateAndSetView() {
     const statusEl = document.getElementById('statusText');
     statusEl.innerText = '📍 正在定位...';
@@ -275,8 +329,8 @@ function locateAndSetView() {
 
     navigator.geolocation.getCurrentPosition(
         async (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
+            // GPS 返回 WGS-84，转成 GCJ-02
+            const [lng, lat] = wgs84ToGcj02(position.coords.longitude, position.coords.latitude);
             map.setView([lat, lng], 16);
 
             L.marker([lat, lng], {
@@ -309,7 +363,7 @@ function locateAndSetView() {
             statusEl.innerText = msg;
             map.setView([26.879, 112.516], 15);
         },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 } // 延长超时
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
 }
 
@@ -317,8 +371,8 @@ function locateAndSetView() {
 function addPoiMarkers() {
     detailMarkers.forEach(m => map.removeLayer(m));
     detailMarkers = [];
-    const convertedPoiList = poiList.map(poi => convertPoiToWgs84(poi));
-    convertedPoiList.forEach(poi => {
+    // 直接使用 poiList 的坐标，不再转换
+    poiList.forEach(poi => {
         const color = poi.score >= 4 ? '#34c759' : (poi.score >= 3 ? '#ff9500' : '#ff3b30');
         const html = `
             <div style="display: flex; align-items: center; gap: 4px;">
@@ -337,8 +391,8 @@ function addPoiMarkers() {
         marker.bindPopup(createPopupContent(poi));
         detailMarkers.push(marker);
     });
-    const [campusLng, campusLat] = gcj02ToWgs84(112.516, 26.879);
-    const campusCenter = [campusLat, campusLng];
+    // 校园中心点直接用 GCJ-02 坐标
+    const campusCenter = [26.879, 112.516];
     campusMarker = L.marker(campusCenter, {
         icon: L.divIcon({
             className: 'campus-marker',
@@ -352,6 +406,8 @@ function addPoiMarkers() {
     }).bindPopup('<b>🏫 南华大学（雨母校区）</b><br>点击放大可查看校园内各建筑的无障碍设施');
     updateMarkersByZoom();
 }
+
+
 function updateMarkersByZoom() {
     const currentZoom = map.getZoom();
     if (currentZoom >= ZOOM_THRESHOLD) {
@@ -591,6 +647,7 @@ async function reverseGeocode(lat, lng) {
         return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
 }
+
 async function getAMapRouteByCoords(startCoord, endCoord) {
     const origin = `${startCoord.lng},${startCoord.lat}`;
     const destination = `${endCoord.lng},${endCoord.lat}`;
@@ -606,7 +663,7 @@ async function getAMapRouteByCoords(startCoord, endCoord) {
                 const polyline = step.polyline;
                 if (polyline) {
                     let coords = polyline.split(';').map(p => p.split(',').map(Number));
-                    coords = coords.map(coord => gcj02ToWgs84(coord[0], coord[1]));
+                    // 高德返回的就是 GCJ-02，直接使用，不再转换
                     allCoords = allCoords.concat(coords);
                 }
             }
@@ -622,6 +679,7 @@ async function getAMapRouteByCoords(startCoord, endCoord) {
         return null;
     }
 }
+
 function checkObstaclesAlongRoute(geojson, strictMode = false) {
     const coords = [];
     if (geojson.type === 'LineString') {
@@ -725,9 +783,10 @@ async function planRealRoute() {
     // 4. 清除旧路线并绘制起点终点标记
     clearRoute();
 
-    const [startWgsLng, startWgsLat] = gcj02ToWgs84(startCoord.lng, startCoord.lat);
-    const [endWgsLng, endWgsLat] = gcj02ToWgs84(endCoord.lng, endCoord.lat);
-
+    const startWgsLng = startCoord.lng;
+    const startWgsLat = startCoord.lat;
+    const endWgsLng = endCoord.lng;
+    const endWgsLat = endCoord.lat;
     startMarker = L.marker([startWgsLat, startWgsLng], {
         icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] })
     }).addTo(map).bindPopup(`起点: ${startName}`);
@@ -798,11 +857,11 @@ async function useMyLocationAsStart() {
 
     navigator.geolocation.getCurrentPosition(
         async (pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
+            // GPS 返回 WGS-84，转成 GCJ-02
+            const [lng, lat] = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude);
 
             // 获取详细地址
-            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; // 默认坐标字符串
+            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
             try {
                 const addr = await reverseGeocode(lat, lng);
                 if (addr && !addr.includes('NaN')) address = addr;
@@ -810,7 +869,7 @@ async function useMyLocationAsStart() {
                 console.warn('逆地理编码失败:', e);
             }
 
-            // 填入输入框，并存储坐标（关键步骤）
+            // 填入输入框，并存储坐标
             startInput.value = address;
             startInput.dataset.location = `${lng},${lat}`;
             startInput.dataset.name = '我的位置';
@@ -818,9 +877,6 @@ async function useMyLocationAsStart() {
             const successMsg = `✅ 起点已设置为：${address}`;
             statusEl.innerText = successMsg;
             speak('起点已设置为当前位置');
-
-            // 可选：自动触发规划（若需要可取消注释）
-            // planRealRoute();
         },
         (err) => {
             statusEl.innerText = '❌ 定位失败，请检查权限或网络';
@@ -945,6 +1001,7 @@ function parseIntent(command) {
     if (context.waitingConfirmation && (lower.includes('不') || lower.includes('取消') || lower.includes('不用'))) return { intent: 'deny' };
     return { intent: 'unknown' };
 }
+
 async function executeNavigate(destination) {
     // 1. 终点匹配
     let matchedPoi = poiList.find(poi =>
@@ -979,12 +1036,15 @@ async function executeNavigate(destination) {
     if (navigator.geolocation) {
         try {
             const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 30000
-                });
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 30000
             });
+        });
+        // 添加坐标转换
+        const [lng, lat] = wgs84ToGcj02(position.coords.longitude, position.coords.latitude);
+        startCoord = { lat, lng };
             startCoord = {
                 lat: position.coords.latitude,
                 lng: position.coords.longitude
@@ -1035,8 +1095,10 @@ async function executeNavigate(destination) {
     // 4. 绘制路线
     clearRoute();
 
-    const [startWgsLng, startWgsLat] = gcj02ToWgs84(startCoord.lng, startCoord.lat);
-    const [endWgsLng, endWgsLat] = gcj02ToWgs84(endCoord.lng, endCoord.lat);
+    const startWgsLng = startCoord.lng;
+    const startWgsLat = startCoord.lat;
+    const endWgsLng = endCoord.lng;
+    const endWgsLat = endCoord.lat;
 
     startMarker = L.marker([startWgsLat, startWgsLng], {
         icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] })
@@ -1411,16 +1473,14 @@ function locateUser() {
 
     navigator.geolocation.getCurrentPosition(
         async (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
+            // GPS 返回 WGS-84，转成 GCJ-02
+            const [lng, lat] = wgs84ToGcj02(position.coords.longitude, position.coords.latitude);
             map.setView([lat, lng], 16);
 
-            // 添加位置标记
             L.marker([lat, lng], {
                 icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] })
             }).addTo(map).bindPopup('您当前的位置').openPopup();
 
-            // 获取详细地址
             let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
             try {
                 const addr = await reverseGeocode(lat, lng);
@@ -1448,6 +1508,7 @@ window.onload = async () => {
     initMap();
     await loadPoiFromServer();
     await loadObstaclesFromServer();
+    await loadRoadSegments();
     addPoiMarkers();
     updateObstacleMarkers();
     renderFacilityPanel();

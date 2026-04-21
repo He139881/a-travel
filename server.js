@@ -17,13 +17,15 @@ const poiRouter = require('./routes/poi');
 const uploadRouter = require('./routes/upload');
 const { router: authRouter } = require('./routes/auth');
 const sosRouter = require('./routes/sos');   // 确保路径正确
+const roadsRouter = require('./routes/roads');
 
 // API 路由注册（必须在 404 之前）
 app.use('/api/auth', authRouter);
 app.use('/api/obstacles', obstaclesRouter);
 app.use('/api/poi', poiRouter);
 app.use('/api/upload', uploadRouter);
-app.use('/api/sos', sosRouter);              // 加上这一行
+app.use('/api/sos', sosRouter); 
+app.use('/api/roads', roadsRouter);
 
 // 根路径重定向
 app.get('/', (req, res) => {
