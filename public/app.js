@@ -1174,12 +1174,48 @@ function toggleVoiceRecognition() {
 }
 
 // ========== 其他功能 ==========
-function sos() {
-    const msg = "SOS求助！已通知社区管理员（模拟）。当前位置：市民中心图书馆附近。";
-    speak(msg, 'urgent');
-    document.getElementById('statusText').innerHTML = `<span style="color:red;">🚨 ${msg}</span>`;
-    vibrate(4);
-    alert(msg);
+async function sos() {
+    // 获取当前位置
+    if (!navigator.geolocation) {
+        alert('浏览器不支持定位，无法发送SOS');
+        return;
+    }
+    document.getElementById('statusText').innerText = '🚨 正在获取位置并发送求助...';
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        let address = '';
+        try {
+            address = await reverseGeocode(lat, lng);
+        } catch (e) {}
+        const message = prompt('请输入求助详情（可选）', '需要帮助，请尽快联系！');
+        const data = { lat, lng, address, message: message || 'SOS 紧急求助' };
+        try {
+            const res = await fetch(`${API_BASE}/sos`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                const msg = 'SOS求助已发送！管理员将尽快处理。';
+                speak(msg, 'urgent');
+                document.getElementById('statusText').innerHTML = `<span style="color:red;">🚨 ${msg}</span>`;
+                vibrate(4);
+                alert(msg);
+            } else {
+                throw new Error('服务器响应失败');
+            }
+        } catch (err) {
+            console.error('SOS发送失败:', err);
+            alert('网络错误，SOS求助发送失败，请稍后重试');
+        }
+    }, (err) => {
+        alert('获取位置失败，无法发送SOS');
+        document.getElementById('statusText').innerText = '❌ 定位失败，SOS未发送';
+    }, { enableHighAccuracy: true, timeout: 10000 });
 }
 async function showReportModal() {
 

@@ -578,3 +578,57 @@ window.onload = async () => {
         await loadObstaclesFromServer();
     }, 30000);
 };
+
+
+async function loadSosRecords() {
+    try {
+        const res = await fetch(`${API_BASE}/sos`, {
+            headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        renderSosTable(data);
+    } catch (err) {
+        console.error('加载 SOS 记录失败', err);
+    }
+}
+
+function renderSosTable(records) {
+    const container = document.getElementById('sosTableContainer');
+    let html = '<table><th>ID</th><th>用户</th><th>位置(经纬度)</th><th>地址</th><th>留言</th><th>状态</th><th>时间</th><th>操作</th></tr>';
+    records.forEach(rec => {
+        html += `<tr>
+            <td>${rec.id}</td>
+            <td>${rec.username || '匿名'}</td>
+            <td>${rec.lat.toFixed(4)}, ${rec.lng.toFixed(4)}</td>
+            <td>${rec.address || '-'}</td>
+            <td>${rec.message || '-'}</td>
+            <td><select class="sos-status" data-id="${rec.id}" data-status="${rec.status}">
+                <option value="待处理" ${rec.status === '待处理' ? 'selected' : ''}>待处理</option>
+                <option value="已处理" ${rec.status === '已处理' ? 'selected' : ''}>已处理</option>
+            </select></td>
+            <td>${rec.created_at}</td>
+            <td><button class="update-sos-status" data-id="${rec.id}">更新状态</button></td>
+        </tr>`;
+    });
+    html += '</table>';
+    container.innerHTML = html;
+    // 绑定状态更新事件
+    document.querySelectorAll('.update-sos-status').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const select = document.querySelector(`.sos-status[data-id="${id}"]`);
+            const newStatus = select.value;
+            const res = await fetch(`${API_BASE}/sos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (res.ok) {
+                alert('状态更新成功');
+                loadSosRecords();
+            } else {
+                alert('更新失败');
+            }
+        });
+    });
+}

@@ -94,6 +94,7 @@
     <div class="admin-tabs">
         <button class="tab-btn active" data-tab="obstacles">🚧 障碍物管理</button>
         <button class="tab-btn" data-tab="poi">🏢 POI 管理</button>
+        <button class="tab-btn" data-tab="sos">🆘 SOS 求助记录</button>
     </div>
 
     <!-- 障碍物管理 Tab -->
@@ -151,6 +152,16 @@
             <div id="poiTableContainer" class="table-container"></div>
         </div>
     </div>
+
+    <div id="sosTab" class="tab-content hidden">
+    <div style="padding: 20px;">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button id="refreshSosBtn" class="btn-secondary">🔄 刷新</button>
+        </div>
+        <div id="sosTableContainer" class="table-container"></div>
+    </div>
+</div>
+
 
     <!-- 照片查看模态框 -->
     <div id="photoModal" class="modal">
