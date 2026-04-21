@@ -75,3 +75,67 @@ const requireAdmin = (req, res, next) => {
 };
 
 module.exports = { router, authenticate, requireAdmin };
+
+// ========== 用户个人信息管理（需认证） ==========
+
+// 获取当前用户信息
+router.get('/me', authenticate, (req, res) => {
+    const userId = req.user.id;
+    db.get(`SELECT id, username, nickname, phone, avatar, created_at FROM users WHERE id = ?`, [userId], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: '用户不存在' });
+        res.json(user);
+    });
+});
+
+// 更新用户信息（昵称、手机号）
+router.put('/me', authenticate, (req, res) => {
+    const userId = req.user.id;
+    const { nickname, phone } = req.body;
+    db.run(`UPDATE users SET nickname = COALESCE(?, nickname), phone = COALESCE(?, phone) WHERE id = ?`,
+        [nickname, phone, userId], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
+});
+
+// 修改密码
+router.put('/me/password', authenticate, async (req, res) => {
+    const userId = req.user.id;
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
+        return res.status(400).json({ error: '旧密码和新密码不能为空' });
+    }
+    db.get(`SELECT password FROM users WHERE id = ?`, [userId], async (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: '用户不存在' });
+        const valid = await bcrypt.compare(oldPassword, user.password);
+        if (!valid) return res.status(401).json({ error: '旧密码错误' });
+        const hashed = await bcrypt.hash(newPassword, 10);
+        db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashed, userId], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ success: true });
+        });
+    });
+});
+
+// 获取当前用户上报的障碍物记录
+router.get('/me/obstacles', authenticate, (req, res) => {
+    // obstacles 表中没有 user_id 字段，需要添加。如果没有，则无法区分用户。
+    // 简便方案：从 token 中获取 username，但 obstacles 表没有 username 字段。
+    // 需要先修改 obstacles 表，增加 user_id 字段。
+    // 这里给出修改表的代码和查询。
+    // 如果你已添加 user_id 字段，请用下面的查询。
+    db.all(`SELECT * FROM obstacles WHERE user_id = ? ORDER BY report_time DESC`, [req.user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// 获取当前用户的 SOS 求助记录
+router.get('/me/sos-records', authenticate, (req, res) => {
+    db.all(`SELECT * FROM sos_records WHERE user_id = ? ORDER BY created_at DESC`, [req.user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});

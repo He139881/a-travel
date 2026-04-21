@@ -15,15 +15,17 @@ router.get('/', (req, res) => {
 });
 
 // 添加上报
-router.post('/', (req, res) => {
+const { authenticate } = require('./auth'); // 顶部引入
+
+router.post('/', authenticate, (req, res) => {
     const { lat, lng, type, description, photo, report_time } = req.body;
     if (!lat || !lng || !type) {
         return res.status(400).json({ error: '缺少必要字段' });
     }
-    const id = Date.now(); // 使用时间戳作为 ID
-    const sql = `INSERT INTO obstacles (id, lat, lng, type, description, status, report_time, photo) 
-                 VALUES (?, ?, ?, ?, ?, '未处理', ?, ?)`;
-    db.run(sql, [id, lat, lng, type, description || '', report_time || new Date().toISOString().slice(0,10), photo || null], function(err) {
+    const id = Date.now();
+    const sql = `INSERT INTO obstacles (id, user_id, lat, lng, type, description, status, report_time, photo) 
+                 VALUES (?, ?, ?, ?, ?, ?, '未处理', ?, ?)`;
+    db.run(sql, [id, req.user.id, lat, lng, type, description || '', report_time || new Date().toISOString().slice(0,10), photo || null], function(err) {
         if (err) {
             res.status(500).json({ error: err.message });
             return;

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>个人中心 - 无障碍出行伴侣</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: #f5f7fa;
+        }
+
+        .user-container {
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .user-card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .user-avatar {
+            width: 70px;
+            height: 70px;
+            background: #007aff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .edit-btn {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            background: #ff3b30;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 30px;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .tab.active {
+            background: #007aff;
+            color: white;
+        }
+
+        .record-item {
+            background: white;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .record-type {
+            font-weight: bold;
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .record-type.obstacle {
+            background: #ff9500;
+            color: white;
+        }
+
+        .record-type.sos {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .record-time {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 16px;
+            background: #6c757d;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            text-decoration: none;
+        }
+
+        .edit-modal .modal-content {
+            max-width: 350px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="user-container">
+        <a href="index.html" class="back-btn">← 返回地图</a>
+
+        <!-- 个人信息卡片 -->
+        <div class="user-card">
+            <div class="user-avatar">👤</div>
+            <div class="info-row">
+                <span class="info-label">用户名</span>
+                <span class="info-value" id="username"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">昵称</span>
+                <span class="info-value" id="nickname"></span>
+                <button class="edit-btn" onclick="editNickname()">编辑</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">手机号</span>
+                <span class="info-value" id="phone"></span>
+                <button class="edit-btn" onclick="editPhone()">编辑</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">密码</span>
+                <span class="info-value">●●●●●●</span>
+                <button class="edit-btn" onclick="editPassword()">修改</button>
+            </div>
+            <div class="info-row">
+                <span class="info-label">注册时间</span>
+                <span class="info-value" id="createdAt"></span>
+            </div>
+        </div>
+
+        <!-- 记录切换标签 -->
+        <div class="tab-bar">
+            <div class="tab active" data-tab="obstacles">我的上报</div>
+            <div class="tab" data-tab="sos">我的SOS</div>
+        </div>
+
+        <!-- 我的上报列表 -->
+        <div id="obstaclesList"></div>
+        <!-- 我的SOS列表 -->
+        <div id="sosList" style="display: none;"></div>
+
+        <button class="logout-btn" id="logoutBtn">退出登录</button>
+    </div>
+
+    <!-- 编辑昵称模态框 -->
+    <div id="editNicknameModal" class="modal" style="display: none;">
+        <div class="modal-content edit-modal">
+            <span class="close-btn" onclick="closeModal('editNicknameModal')">&times;</span>
+            <h3>修改昵称</h3>
+            <input type="text" id="newNickname" placeholder="新昵称" class="form-input">
+            <button class="btn-primary" onclick="updateNickname()">保存</button>
+        </div>
+    </div>
+
+    <!-- 编辑手机号模态框 -->
+    <div id="editPhoneModal" class="modal" style="display: none;">
+        <div class="modal-content edit-modal">
+            <span class="close-btn" onclick="closeModal('editPhoneModal')">&times;</span>
+            <h3>修改手机号</h3>
+            <input type="tel" id="newPhone" placeholder="新手机号" class="form-input">
+            <button class="btn-primary" onclick="updatePhone()">保存</button>
+        </div>
+    </div>
+
+    <!-- 修改密码模态框 -->
+    <div id="editPasswordModal" class="modal" style="display: none;">
+        <div class="modal-content edit-modal">
+            <span class="close-btn" onclick="closeModal('editPasswordModal')">&times;</span>
+            <h3>修改密码</h3>
+            <input type="password" id="oldPassword" placeholder="旧密码" class="form-input"><br><br>
+            <input type="password" id="newPassword" placeholder="新密码" class="form-input"><br><br>
+            <button class="btn-primary" onclick="updatePassword()">保存</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let currentUser = null;
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
+        }
+
+        // 检查登录
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return false;
+            }
+            return true;
+        }
+
+        // 加载用户信息
+        async function loadUserInfo() {
+            if (!checkAuth()) return;
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: getAuthHeaders()
+                });
+                if (res.ok) {
+                    currentUser = await res.json();
+                    document.getElementById('username').innerText = currentUser.username;
+                    document.getElementById('nickname').innerText = currentUser.nickname || '未设置';
+                    document.getElementById('phone').innerText = currentUser.phone || '未设置';
+                    document.getElementById('createdAt').innerText = new Date(currentUser.created_at).toLocaleDateString();
+                } else if (res.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = 'login.html';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // 加载我的上报
+        async function loadMyObstacles() {
+            try {
+                const res = await fetch(`${API_BASE}/auth/me/obstacles`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                const container = document.getElementById('obstaclesList');
+                if (!data.length) {
+                    container.innerHTML = '<div class="user-card" style="text-align:center;">暂无上报记录</div>';
+                    return;
+                }
+                let html = '';
+                data.forEach(obs => {
+                    html += `
+                        <div class="record-item">
+                            <span class="record-type obstacle">${obs.type}</span>
+                            <div>${obs.description || '无描述'}</div>
+                            <div class="record-time">${obs.report_time} · 状态: ${obs.status}</div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // 加载我的SOS
+        async function loadMySos() {
+            try {
+                const res = await fetch(`${API_BASE}/auth/me/sos-records`, {
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || '加载失败');
+                }
+                const data = await res.json();
+                const container = document.getElementById('sosList');
+                if (!data.length) {
+                    container.innerHTML = '<div class="user-card" style="text-align:center;">暂无SOS求助记录</div>';
+                    return;
+                }
+                let html = '';
+                data.forEach(rec => {
+                    const shortAddress = rec.address ? (rec.address.length > 20 ? rec.address.substr(0, 20) + '…' : rec.address) : '未知地址';
+                    html += `
+                <div class="record-item">
+                    <span class="record-type sos">🆘 SOS求助</span>
+                    <div style="margin-top: 8px;">
+                        <div><strong>📍 地址：</strong>${shortAddress}</div>
+                        <div><strong>💬 留言：</strong>${rec.message || '无'}</div>
+                        <div><strong>📌 状态：</strong><span style="color: ${rec.status === '待处理' ? '#ff3b30' : '#34c759'};">${rec.status}</span></div>
+                        <div class="record-time">🕒 ${new Date(rec.created_at).toLocaleString()}</div>
+                    </div>
+                    <button class="view-sos-detail-btn" data-id="${rec.id}" style="margin-top: 10px; padding: 6px 12px; background: #007aff; color: white; border: none; border-radius: 20px; cursor: pointer;">🔍 查看详情</button>
+                </div>
+            `;
+                });
+                container.innerHTML = html;
+
+                // 绑定详情按钮事件
+                document.querySelectorAll('.view-sos-detail-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.dataset.id;
+                        const record = data.find(r => r.id == id);
+                        if (record) showSosDetail(record);
+                    });
+                });
+            } catch (err) {
+                console.error(err);
+                document.getElementById('sosList').innerHTML = `<div class="user-card" style="text-align:center; color:red;">加载失败：${err.message}</div>`;
+            }
+        }
+
+        // 标签切换
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.dataset.tab;
+                    document.getElementById('obstaclesList').style.display = target === 'obstacles' ? 'block' : 'none';
+                    document.getElementById('sosList').style.display = target === 'sos' ? 'block' : 'none';
+                    if (target === 'obstacles') loadMyObstacles();
+                    else loadMySos();
+                });
+            });
+        }
+
+        // 编辑功能
+        function editNickname() { document.getElementById('editNicknameModal').style.display = 'flex'; }
+        function editPhone() { document.getElementById('editPhoneModal').style.display = 'flex'; }
+        function editPassword() { document.getElementById('editPasswordModal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        async function updateNickname() {
+            const nickname = document.getElementById('newNickname').value.trim();
+            if (!nickname) return alert('请输入昵称');
+            const res = await fetch(`${API_BASE}/auth/me`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({ nickname })
+            });
+            if (res.ok) {
+                alert('修改成功');
+                closeModal('editNicknameModal');
+                loadUserInfo();
+            } else {
+                alert('修改失败');
+            }
+        }
+
+        async function updatePhone() {
+            const phone = document.getElementById('newPhone').value.trim();
+            const res = await fetch(`${API_BASE}/auth/me`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({ phone })
+            });
+            if (res.ok) {
+                alert('修改成功');
+                closeModal('editPhoneModal');
+                loadUserInfo();
+            } else {
+                alert('修改失败');
+            }
+        }
+
+        async function updatePassword() {
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            if (!oldPassword || !newPassword) return alert('请填写完整');
+            const res = await fetch(`${API_BASE}/auth/me/password`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({ oldPassword, newPassword })
+            });
+            if (res.ok) {
+                alert('密码修改成功，请重新登录');
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            } else {
+                const err = await res.json();
+                alert(err.error || '修改失败');
+            }
+        }
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        });
+
+        // 页面初始化
+        window.onload = async () => {
+            await loadUserInfo();
+            initTabs();
+            loadMyObstacles(); // 默认显示上报列表
+        };
+
+        function showSosDetail(record) {
+            const content = document.getElementById('sosDetailContent');
+            const address = record.address || '未知';
+            const lat = record.lat.toFixed(6);
+            const lng = record.lng.toFixed(6);
+            content.innerHTML = `
+        <p><strong>👤 用户：</strong>${record.username || '匿名'}</p>
+        <p><strong>📍 地址：</strong>${address}</p>
+        <p><strong>🌐 坐标：</strong>${lat}, ${lng}</p>
+        <p><strong>💬 留言：</strong>${record.message || '无'}</p>
+        <p><strong>📌 状态：</strong>${record.status}</p>
+        <p><strong>🕒 上报时间：</strong>${new Date(record.created_at).toLocaleString()}</p>
+    `;
+            document.getElementById('sosDetailModal').style.display = 'flex';
+        }
+
+    </script>
+
+
+    <!-- SOS 详情模态框 -->
+    <div id="sosDetailModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-btn" onclick="closeModal('sosDetailModal')">&times;</span>
+            <h3>🆘 SOS 求助详情</h3>
+            <div id="sosDetailContent" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</body>
+
+</html>

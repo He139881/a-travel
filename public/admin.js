@@ -135,7 +135,7 @@ async function addPoi() {
     if (isNaN(lat) || isNaN(lng)) { alert('坐标无效'); return; }
     const type = prompt('类型（教学楼/食堂/宿舍等）', '其他');
     const score = parseFloat(prompt('评分(0-5)', '3.0'));
-    
+
     try {
         const res = await fetch(`${API_BASE}/poi`, {
             method: 'POST',
@@ -290,9 +290,9 @@ function renderCharts() {
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().slice(5,10);
+        const dateStr = d.toISOString().slice(5, 10);
         days.push(dateStr);
-        counts.push(obstacles.filter(o => o.report_time === d.toISOString().slice(0,10)).length);
+        counts.push(obstacles.filter(o => o.report_time === d.toISOString().slice(0, 10)).length);
     }
     const trendChart = echarts.init(document.getElementById('trendChartAdmin'));
     trendChart.setOption({
@@ -329,7 +329,7 @@ async function confirmClaim() {
     if (obs) {
         obs.status = '处理中';
         obs.claimed_by = name;
-        obs.claim_time = new Date().toISOString().slice(0,10);
+        obs.claim_time = new Date().toISOString().slice(0, 10);
         await updateObstacleOnServer(id, {
             status: '处理中',
             claimed_by: name,
@@ -348,11 +348,11 @@ async function confirmResolve() {
     const id = parseInt(document.getElementById('claimObstacleId').value);
     const obs = obstacles.find(o => o.id === id);
     const fileInput = document.getElementById('resolvedPhotoInput');
-    
+
     const process = async (photoData) => {
         obs.status = '已完成';
         obs.resolved_photo = photoData || null;
-        obs.resolved_time = new Date().toISOString().slice(0,10);
+        obs.resolved_time = new Date().toISOString().slice(0, 10);
         await updateObstacleOnServer(id, {
             status: '已完成',
             resolved_photo: photoData || null,
@@ -365,7 +365,7 @@ async function confirmResolve() {
             new Notification(`障碍物 #${id} 已处理完成`);
         }
     };
-    
+
     if (fileInput.files.length > 0) {
         const reader = new FileReader();
         reader.onload = (e) => process(e.target.result);
@@ -402,7 +402,7 @@ async function applyBatchAction() {
     }
     const newStatus = action === 'processing' ? '处理中' : '已完成';
     const idsToUpdate = Array.from(selectedIds);
-    
+
     for (const id of idsToUpdate) {
         const obs = obstacles.find(o => o.id === id);
         if (obs) obs.status = newStatus;
@@ -441,30 +441,30 @@ function requestNotification() {
 async function exportPDF() {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
-    
+
     const statsEl = document.querySelector('.stats-cards');
     const chartsEl = document.querySelector('.charts-container');
     const heatEl = document.getElementById('heatmapContainer');
-    
+
     const canvas1 = await html2canvas(statsEl);
     const canvas2 = await html2canvas(chartsEl);
     const canvas3 = await html2canvas(heatEl);
-    
+
     const img1 = canvas1.toDataURL('image/png');
     const img2 = canvas2.toDataURL('image/png');
     const img3 = canvas3.toDataURL('image/png');
-    
+
     pdf.setFontSize(16);
     pdf.text('无障碍出行社区周报', 10, 20);
     pdf.addImage(img1, 'PNG', 10, 30, 190, 40);
     pdf.addImage(img2, 'PNG', 10, 80, 190, 80);
     pdf.addPage();
     pdf.addImage(img3, 'PNG', 10, 20, 190, 80);
-    
+
     pdf.setFontSize(12);
-    pdf.text(`总上报: ${obstacles.length}  待处理: ${obstacles.filter(o=>o.status==='未处理').length}  已完成: ${obstacles.filter(o=>o.status==='已完成').length}`, 10, 110);
-    
-    pdf.save(`无障碍周报_${new Date().toISOString().slice(0,10)}.pdf`);
+    pdf.text(`总上报: ${obstacles.length}  待处理: ${obstacles.filter(o => o.status === '未处理').length}  已完成: ${obstacles.filter(o => o.status === '已完成').length}`, 10, 110);
+
+    pdf.save(`无障碍周报_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 // ========== Tab 切换 ==========
@@ -476,9 +476,13 @@ function initTabs() {
             const tab = btn.dataset.tab;
             document.getElementById('obstaclesTab').classList.toggle('hidden', tab !== 'obstacles');
             document.getElementById('poiTab').classList.toggle('hidden', tab !== 'poi');
+            document.getElementById('sosTab').classList.toggle('hidden', tab !== 'sos'); // 增加 SOS Tab 显示切换
+
             if (tab === 'poi') {
                 loadPoiList();
                 loadFacilityStatus();
+            } else if (tab === 'sos') {
+                loadSosRecords(); // 加载 SOS 数据
             }
         });
     });
@@ -494,6 +498,10 @@ window.onload = async () => {
     initTabs();
 
     // 绑定事件
+    document.getElementById('refreshSosBtn').addEventListener('click', () => {
+        loadSosRecords();
+    });
+
     document.getElementById('refreshBtn').addEventListener('click', async () => {
         await loadObstaclesFromServer();
         renderTable(document.getElementById('searchInput').value, document.getElementById('statusFilter').value);
@@ -594,41 +602,89 @@ async function loadSosRecords() {
 
 function renderSosTable(records) {
     const container = document.getElementById('sosTableContainer');
-    let html = '<table><th>ID</th><th>用户</th><th>位置(经纬度)</th><th>地址</th><th>留言</th><th>状态</th><th>时间</th><th>操作</th></tr>';
+    if (!records || records.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;">暂无 SOS 求助记录</div>';
+        return;
+    }
+
+    let html = `
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户</th>
+                    <th>位置</th>
+                    <th>地址</th>
+                    <th>留言</th>
+                    <th>状态</th>
+                    <th>时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
     records.forEach(rec => {
+        const shortAddress = rec.address ? (rec.address.length > 15 ? rec.address.substr(0, 15) + '…' : rec.address) : '-';
+        const shortMessage = rec.message ? (rec.message.length > 10 ? rec.message.substr(0, 10) + '…' : rec.message) : '-';
         html += `<tr>
             <td>${rec.id}</td>
             <td>${rec.username || '匿名'}</td>
             <td>${rec.lat.toFixed(4)}, ${rec.lng.toFixed(4)}</td>
-            <td>${rec.address || '-'}</td>
-            <td>${rec.message || '-'}</td>
-            <td><select class="sos-status" data-id="${rec.id}" data-status="${rec.status}">
-                <option value="待处理" ${rec.status === '待处理' ? 'selected' : ''}>待处理</option>
-                <option value="已处理" ${rec.status === '已处理' ? 'selected' : ''}>已处理</option>
-            </select></td>
-            <td>${rec.created_at}</td>
-            <td><button class="update-sos-status" data-id="${rec.id}">更新状态</button></td>
+            <td title="${rec.address || ''}">${shortAddress}</td>
+            <td title="${rec.message || ''}">${shortMessage}</td>
+            <td>
+                <select class="sos-status" data-id="${rec.id}">
+                    <option value="待处理" ${rec.status === '待处理' ? 'selected' : ''}>待处理</option>
+                    <option value="已处理" ${rec.status === '已处理' ? 'selected' : ''}>已处理</option>
+                </select>
+            </td>
+            <td>${new Date(rec.created_at).toLocaleString()}</td>
+            <td>
+                <button class="update-sos-status" data-id="${rec.id}" style="margin-right:5px;">💾 更新</button>
+                <button class="view-sos-detail" data-id="${rec.id}" data-address="${rec.address || ''}" data-message="${rec.message || ''}" data-username="${rec.username || '匿名'}" data-time="${rec.created_at}">🔍 详情</button>
+            </td>
         </tr>`;
     });
-    html += '</table>';
+
+    html += '</tbody></table>';
     container.innerHTML = html;
-    // 绑定状态更新事件
+
+    // 绑定更新状态事件
     document.querySelectorAll('.update-sos-status').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (e) => {
             const id = btn.dataset.id;
             const select = document.querySelector(`.sos-status[data-id="${id}"]`);
+            if (!select) return;
             const newStatus = select.value;
-            const res = await fetch(`${API_BASE}/sos/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                body: JSON.stringify({ status: newStatus })
-            });
-            if (res.ok) {
-                alert('状态更新成功');
-                loadSosRecords();
-            } else {
-                alert('更新失败');
+            try {
+                const res = await fetch(`${API_BASE}/sos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (res.ok) {
+                    alert('状态更新成功');
+                    loadSosRecords();
+                } else {
+                    const err = await res.json();
+                    alert('更新失败：' + (err.error || '未知错误'));
+                }
+            } catch (err) {
+                alert('网络错误，请稍后重试');
             }
+        });
+    });
+
+    // 绑定查看详情事件（可用简单 alert 或模态框展示）
+    document.querySelectorAll('.view-sos-detail').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const username = btn.dataset.username;
+            const time = new Date(btn.dataset.time).toLocaleString();
+            const address = btn.dataset.address || '无';
+            const message = btn.dataset.message || '无';
+            alert(`用户：${username}\n时间：${time}\n地址：${address}\n留言：${message}`);
+            // 也可以改成打开一个自定义模态框
         });
     });
 }

@@ -19,9 +19,10 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-    // 障碍物表（已有，不变）
+    // 障碍物表
     db.run(`CREATE TABLE IF NOT EXISTS obstacles (
         id INTEGER PRIMARY KEY,
+        user_id INTEGER,                 -- 上报用户ID
         lat REAL NOT NULL,
         lng REAL NOT NULL,
         type TEXT NOT NULL,

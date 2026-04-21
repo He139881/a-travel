@@ -219,7 +219,7 @@ async function addObstacleToServer(obstacleData) {
     try {
         const res = await fetch(`${API_BASE}/obstacles`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(obstacleData)
         });
         return res.ok;
@@ -399,13 +399,24 @@ function updateUserStatus() {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const statusSpan = document.getElementById('userStatus');
-    const loginBtn = document.getElementById('loginBtn');
+    const userCenterBtn = document.getElementById('userCenterBtn');
     if (token && user.username) {
         statusSpan.innerHTML = `✅ ${user.username}`;
-        if (loginBtn) loginBtn.innerHTML = '🚪 退出';
+        if (userCenterBtn) {
+            userCenterBtn.innerHTML = '👤 我的';
+            userCenterBtn.href = 'user.html';
+            userCenterBtn.onclick = null; // 移除可能的内联事件
+        }
     } else {
         statusSpan.innerHTML = '';
-        if (loginBtn) loginBtn.innerHTML = '👤 登录';
+        if (userCenterBtn) {
+            userCenterBtn.innerHTML = '👤 登录';
+            userCenterBtn.href = 'javascript:void(0)';
+            userCenterBtn.onclick = (e) => {
+                e.preventDefault();
+                window.location.href = 'login.html';
+            };
+        }
     }
 }
 
