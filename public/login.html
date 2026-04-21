@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,18 +13,21 @@
             padding: 30px;
             background: white;
             border-radius: 24px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
         }
+
         .login-container h2 {
             text-align: center;
             color: #007aff;
             margin-bottom: 24px;
         }
+
         .tab-bar {
             display: flex;
             margin-bottom: 24px;
             border-bottom: 1px solid #ddd;
         }
+
         .tab {
             flex: 1;
             text-align: center;
@@ -32,24 +36,30 @@
             font-weight: 500;
             color: #666;
         }
+
         .tab.active {
             color: #007aff;
             border-bottom: 2px solid #007aff;
         }
+
         .login-form {
             display: block;
         }
+
         .login-form.hidden {
             display: none;
         }
+
         .form-group {
             margin-bottom: 16px;
         }
+
         .form-group label {
             display: block;
             margin-bottom: 6px;
             font-weight: 500;
         }
+
         .form-group input {
             width: 100%;
             padding: 12px;
@@ -57,6 +67,7 @@
             border-radius: 12px;
             font-size: 16px;
         }
+
         .btn-login {
             width: 100%;
             padding: 14px;
@@ -69,22 +80,26 @@
             cursor: pointer;
             margin-top: 10px;
         }
+
         .error-msg {
             color: #ff3b30;
             margin-top: 10px;
             text-align: center;
         }
+
         .register-link {
             text-align: center;
             margin-top: 16px;
             color: #666;
         }
+
         .register-link a {
             color: #007aff;
             text-decoration: none;
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <h2>无障碍出行伴侣</h2>
@@ -92,7 +107,7 @@
             <div class="tab active" data-role="user">用户登录</div>
             <div class="tab" data-role="admin">管理员登录</div>
         </div>
-        
+
         <!-- 用户登录表单 -->
         <form id="userLoginForm" class="login-form">
             <div class="form-group">
@@ -108,7 +123,7 @@
                 还没有账号？<a href="#" id="showRegisterBtn">立即注册</a>
             </div>
         </form>
-        
+
         <!-- 管理员登录表单 -->
         <form id="adminLoginForm" class="login-form hidden">
             <div class="form-group">
@@ -121,7 +136,7 @@
             </div>
             <button type="submit" class="btn-login">登 录</button>
         </form>
-        
+
         <!-- 注册表单（弹窗式） -->
         <div id="registerModal" class="modal" style="display: none;">
             <div class="modal-content" style="max-width: 400px;">
@@ -148,14 +163,14 @@
                 </form>
             </div>
         </div>
-        
+
         <div id="loginError" class="error-msg"></div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:3000/api';
         let currentRole = 'user'; // 'user' 或 'admin'
-        
+
         // 标签切换
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -167,13 +182,13 @@
                 document.getElementById('loginError').innerText = '';
             });
         });
-        
+
         // 用户登录
         document.getElementById('userLoginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('userUsername').value;
             const password = document.getElementById('userPassword').value;
-            
+
             try {
                 const res = await fetch(`${API_BASE}/auth/login`, {
                     method: 'POST',
@@ -192,13 +207,13 @@
                 document.getElementById('loginError').innerText = '网络错误，请稍后重试';
             }
         });
-        
+
         // 管理员登录
         document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('adminUsername').value;
             const password = document.getElementById('adminPassword').value;
-            
+
             try {
                 const res = await fetch(`${API_BASE}/auth/login`, {
                     method: 'POST',
@@ -217,18 +232,18 @@
                 document.getElementById('loginError').innerText = '网络错误，请稍后重试';
             }
         });
-        
+
         // 显示注册模态框
         document.getElementById('showRegisterBtn').addEventListener('click', (e) => {
             e.preventDefault();
             document.getElementById('registerModal').style.display = 'flex';
         });
-        
+
         // 关闭注册模态框
         document.getElementById('closeRegisterModal').addEventListener('click', () => {
             document.getElementById('registerModal').style.display = 'none';
         });
-        
+
         // 注册
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -236,7 +251,7 @@
             const password = document.getElementById('regPassword').value;
             const nickname = document.getElementById('regNickname').value;
             const phone = document.getElementById('regPhone').value;
-            
+
             try {
                 const res = await fetch(`${API_BASE}/auth/register`, {
                     method: 'POST',
@@ -247,7 +262,7 @@
                 if (res.ok) {
                     alert('注册成功，请登录');
                     document.getElementById('registerModal').style.display = 'none';
-                    document.getElementById('userUsername').value = username;
+                    document.getElementById('userUsername').value = username; // 自动填入
                 } else {
                     alert(data.error);
                 }
@@ -255,7 +270,7 @@
                 alert('注册失败，请稍后重试');
             }
         });
-        
+
         // 检查是否已登录，若已登录则跳转
         (function checkLogin() {
             const token = localStorage.getItem('token');
@@ -270,4 +285,5 @@
         })();
     </script>
 </body>
+
 </html>

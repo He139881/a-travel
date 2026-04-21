@@ -5,6 +5,20 @@ const dbPath = path.join(__dirname, 'data.db');
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
+
+    // SOS 求助记录表
+    db.run(`CREATE TABLE IF NOT EXISTS sos_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,                     -- 关联 users.id，未登录可为 NULL
+    username TEXT,
+    lat REAL NOT NULL,
+    lng REAL NOT NULL,
+    address TEXT,
+    message TEXT,
+    status TEXT DEFAULT '待处理',        -- 待处理/已处理
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
     // 障碍物表（已有，不变）
     db.run(`CREATE TABLE IF NOT EXISTS obstacles (
         id INTEGER PRIMARY KEY,
@@ -71,7 +85,7 @@ db.serialize(() => {
     const bcrypt = require('bcryptjs');
     const defaultAdmin = 'admin';
     const defaultPassword = bcrypt.hashSync('admin123', 10);
-    db.run(`INSERT OR IGNORE INTO admins (username, password) VALUES (?, ?)`, 
+    db.run(`INSERT OR IGNORE INTO admins (username, password) VALUES (?, ?)`,
         [defaultAdmin, defaultPassword]);
 });
 

@@ -19,8 +19,8 @@ class SpeechManager {
     loadVoices() {
         const voices = this.synth.getVoices();
         this.voice = voices.find(v => v.lang.includes('zh') && v.name.includes('Google')) ||
-                     voices.find(v => v.lang.includes('zh')) ||
-                     voices[0];
+            voices.find(v => v.lang.includes('zh')) ||
+            voices[0];
     }
 
     // 添加播报内容，priority: 'urgent' 或 'normal'
@@ -394,6 +394,39 @@ function updateVoiceButtonState() {
     }
 }
 
+// 更新顶部用户状态显示
+function updateUserStatus() {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const statusSpan = document.getElementById('userStatus');
+    const loginBtn = document.getElementById('loginBtn');
+    if (token && user.username) {
+        statusSpan.innerHTML = `✅ ${user.username}`;
+        if (loginBtn) loginBtn.innerHTML = '🚪 退出';
+    } else {
+        statusSpan.innerHTML = '';
+        if (loginBtn) loginBtn.innerHTML = '👤 登录';
+    }
+}
+
+// 处理登录/退出按钮点击
+function handleLoginLogout() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        // 已登录 -> 退出
+        if (confirm('确定要退出登录吗？')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            updateUserStatus();
+            speak('您已退出登录');
+            location.reload(); // 刷新页面重置状态
+        }
+    } else {
+        // 未登录 -> 跳转到登录页
+        window.location.href = 'login.html';
+    }
+}
+
 function vibrate(pattern) {
     if (!navigator.vibrate) return;
     const patterns = { 1: [200, 100], 2: [200, 100, 200], 3: [500], 4: [500, 200, 500] };
@@ -710,7 +743,7 @@ function renderSuggestions(type, suggestions) {
 }
 function debounce(fn, delay) {
     let timer = null;
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timer);
         timer = setTimeout(() => fn.apply(this, args), delay);
     };
@@ -780,14 +813,14 @@ function parseIntent(command) {
 }
 async function executeNavigate(destination) {
     // 1. 终点匹配
-    let matchedPoi = poiList.find(poi => 
-        poi.name === destination || 
-        poi.name.includes(destination) || 
+    let matchedPoi = poiList.find(poi =>
+        poi.name === destination ||
+        poi.name.includes(destination) ||
         destination.includes(poi.name)
     );
-    
+
     let endCoord, endName;
-    
+
     if (matchedPoi) {
         endCoord = { lng: matchedPoi.lng, lat: matchedPoi.lat };
         endName = matchedPoi.name;
@@ -802,13 +835,13 @@ async function executeNavigate(destination) {
         endCoord = geoResult;
         endName = destination;
     }
-    
+
     context.lastDestination = { name: endName, lat: endCoord.lat, lng: endCoord.lng };
-    
+
     // 2. 获取起点（优先GPS，失败则使用西门作为默认起点）
     let startCoord = null;
     let startName = '当前位置';
-    
+
     if (navigator.geolocation) {
         try {
             const position = await new Promise((resolve, reject) => {
@@ -825,7 +858,7 @@ async function executeNavigate(destination) {
             // 尝试逆地理编码，但不阻塞
             reverseGeocode(startCoord.lat, startCoord.lng).then(addr => {
                 startName = addr;
-            }).catch(() => {});
+            }).catch(() => { });
             speak(`已定位到您的位置，开始规划路线`);
         } catch (err) {
             console.warn('GPS定位失败:', err);
@@ -855,36 +888,36 @@ async function executeNavigate(destination) {
             startName = '地图中心';
         }
     }
-    
+
     // 3. 路线规划
     const route = await getAMapRouteByCoords(startCoord, endCoord);
     if (!route) {
         speak("路线规划失败，请检查网络或稍后再试");
         return;
     }
-    
+
     context.lastRouteInfo = { distance: route.distance, duration: route.duration };
-    
+
     // 4. 绘制路线
     clearRoute();
-    
+
     const [startWgsLng, startWgsLat] = gcj02ToWgs84(startCoord.lng, startCoord.lat);
     const [endWgsLng, endWgsLat] = gcj02ToWgs84(endCoord.lng, endCoord.lat);
-    
+
     startMarker = L.marker([startWgsLat, startWgsLng], {
         icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] })
     }).addTo(map).bindPopup(`起点: ${startName}`);
-    
+
     endMarker = L.marker([endWgsLat, endWgsLng], {
         icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [28, 28] })
     }).addTo(map).bindPopup(`终点: ${endName}`);
-    
+
     currentRouteLayer = L.geoJSON(route.geometry, {
         style: { color: '#007aff', weight: 6, opacity: 0.8 }
     }).addTo(map);
-    
+
     map.fitBounds(currentRouteLayer.getBounds());
-    
+
     // 5. 播报路线信息（确保一定执行）
     const distanceKm = (route.distance / 1000).toFixed(1);
     const durationMin = Math.round(route.duration / 60);
@@ -893,14 +926,14 @@ async function executeNavigate(destination) {
     console.log('准备播报:', msg); // 调试日志
     speak(msg);
     vibrate(3);
-    
+
     // 6. 障碍物检测
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
     const warnings = checkObstaclesAlongRoute(route.geometry, wheelchairMode);
     if (warnings.length > 0) {
         const types = [...new Set(warnings.map(o => o.type))];
         const hasStairs = types.includes('台阶');
-        
+
         let warningMsg = '';
         if (wheelchairMode) {
             if (hasStairs) {
@@ -914,12 +947,12 @@ async function executeNavigate(destination) {
             warningMsg = `📢 普通模式：沿途有 ${warnings.length} 处障碍物，请注意安全。`;
             document.getElementById('statusText').innerHTML = warningMsg;
         }
-        
+
         speak(warningMsg, 'urgent');
         if (wheelchairMode) vibrate(hasStairs ? 4 : 2);
         highlightNearbyObstacles(warnings);
     }
-}function queryFacility(type) {
+} function queryFacility(type) {
     let available = [];
     if (type === '电梯') available = poiList.filter(poi => facilityStatus[poi.name]?.elevator === '正常');
     else if (type === '坡道') available = poiList.filter(poi => facilityStatus[poi.name]?.ramp === '正常');
@@ -1102,7 +1135,7 @@ function startListening() {
     } catch (e) {
         console.error("启动语音识别失败:", e);
         if (e.message && e.message.includes('start')) {
-            try { recognition.stop(); } catch(ex) {}
+            try { recognition.stop(); } catch (ex) { }
             setTimeout(() => startListening(), 500);
         }
         return false;
@@ -1110,7 +1143,7 @@ function startListening() {
 }
 function stopListening() {
     if (recognition && isListening) {
-        try { recognition.stop(); } catch (e) {}
+        try { recognition.stop(); } catch (e) { }
         isListening = false;
         if (inactivityTimer) clearTimeout(inactivityTimer);
         updateVoiceButtonState();
@@ -1149,6 +1182,14 @@ function sos() {
     alert(msg);
 }
 async function showReportModal() {
+
+    if (!isLoggedIn()) {
+        if (confirm('上报障碍物需要登录，是否前往登录？')) {
+            window.location.href = 'login.html';
+        }
+        return;
+    }
+
     const center = map.getCenter();
     const lat = center.lat, lng = center.lng;
     document.getElementById('obstacleLat').value = lat.toFixed(6);
@@ -1209,7 +1250,8 @@ window.onload = async () => {
     updateObstacleMarkers();
     renderFacilityPanel();
     initAutocomplete();
-
+    updateUserStatus();
+    document.getElementById('loginBtn').onclick = handleLoginLogout;
     document.getElementById('voiceBtn').onclick = toggleVoiceRecognition;
     document.getElementById('sosBtn').onclick = sos;
     document.getElementById('reportBtn').onclick = showReportModal;
