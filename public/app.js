@@ -264,19 +264,48 @@ function initMap() {
     locateAndSetView();
 }
 function locateAndSetView() {
-    document.getElementById('statusText').innerText = '📍 正在定位...';
-    if (!navigator.geolocation) return;
+    const statusEl = document.getElementById('statusText');
+    statusEl.innerText = '📍 正在定位...';
+
+    if (!navigator.geolocation) {
+        statusEl.innerText = '⚠️ 浏览器不支持定位，使用默认校园位置';
+        map.setView([26.879, 112.516], 15);
+        return;
+    }
+
     navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             map.setView([lat, lng], 16);
+
+            // 添加位置标记
             L.marker([lat, lng], {
                 icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] })
             }).addTo(map).bindPopup('您当前的位置').openPopup();
+
+            // 获取详细地址
+            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; // 默认显示坐标
+            try {
+                const addr = await reverseGeocode(lat, lng);
+                if (addr) address = addr;
+            } catch (e) {
+                console.warn('逆地理编码失败:', e);
+            }
+
+            const successMsg = `📍 当前位置：${address}`;
+            statusEl.innerText = successMsg;
+            speak(successMsg);
         },
-        (error) => console.warn("自动定位失败:", error.message),
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        (error) => {
+            console.warn("自动定位失败:", error.message);
+            let msg = '📍 定位失败，使用默认校园位置';
+            if (error.code === 1) msg = '📍 定位权限被拒绝，使用默认位置';
+            else if (error.code === 3) msg = '⏱️ 定位超时，使用默认位置';
+            statusEl.innerText = msg;
+            map.setView([26.879, 112.516], 15);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
     );
 }
 
@@ -531,11 +560,13 @@ async function geocodeAddress(address) {
     const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(fullAddress)}&city=衡阳市&key=${AMAP_KEY}&output=JSON`;
     try {
         const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
         const data = await response.json();
         if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
             const location = data.geocodes[0].location.split(',');
             return { lng: parseFloat(location[0]), lat: parseFloat(location[1]) };
         }
+        console.warn('高德地理编码返回空:', data);
         return null;
     } catch (error) {
         console.error('地理编码失败:', error);
@@ -608,78 +639,136 @@ function highlightNearbyObstacles(obsArray) {
     });
 }
 async function planRealRoute() {
-    let startAddr = document.getElementById('startAddress').value.trim();
-    let endAddr = document.getElementById('endAddress').value.trim();
     const startInput = document.getElementById('startAddress');
     const endInput = document.getElementById('endAddress');
+    const startAddr = startInput.value.trim();
+    const endAddr = endInput.value.trim();
+    const statusEl = document.getElementById('statusText');
+
     if (!startAddr || !endAddr) {
         alert('请输入起点和终点地址');
         return;
     }
-    document.getElementById('statusText').innerText = '🔍 正在规划路线...';
+
+    statusEl.innerText = '🔍 正在规划路线...';
+    console.log('[规划] 起点输入:', startAddr, '终点输入:', endAddr);
+
     let startCoord = null, endCoord = null;
     let startName = startAddr, endName = endAddr;
+
+    // 1. 优先使用下拉选择时保存的坐标
     if (startInput.dataset.location) {
         const [lng, lat] = startInput.dataset.location.split(',').map(Number);
         startCoord = { lng, lat };
         startName = startInput.dataset.name || startAddr;
+        console.log('[规划] 起点来自缓存:', startCoord, startName);
     }
     if (endInput.dataset.location) {
         const [lng, lat] = endInput.dataset.location.split(',').map(Number);
         endCoord = { lng, lat };
         endName = endInput.dataset.name || endAddr;
+        console.log('[规划] 终点来自缓存:', endCoord, endName);
     }
+
+    // 2. 尝试从本地 POI 列表匹配
     if (!startCoord) {
         const poi = poiList.find(p => p.name.includes(startAddr) || startAddr.includes(p.name));
-        if (poi) { startCoord = { lng: poi.lng, lat: poi.lat }; startName = poi.name; }
+        if (poi) {
+            startCoord = { lng: poi.lng, lat: poi.lat };
+            startName = poi.name;
+            console.log('[规划] 起点匹配POI:', startCoord, startName);
+        }
     }
     if (!endCoord) {
         const poi = poiList.find(p => p.name.includes(endAddr) || endAddr.includes(p.name));
-        if (poi) { endCoord = { lng: poi.lng, lat: poi.lat }; endName = poi.name; }
+        if (poi) {
+            endCoord = { lng: poi.lng, lat: poi.lat };
+            endName = poi.name;
+            console.log('[规划] 终点匹配POI:', endCoord, endName);
+        }
     }
+
+    // 3. 调用高德地理编码
     if (!startCoord) {
-        const coord = await geocodeAddress(startAddr);
-        if (coord) startCoord = coord;
+        try {
+            const coord = await geocodeAddress(startAddr);
+            if (coord) {
+                startCoord = coord;
+                console.log('[规划] 起点地理编码成功:', startCoord);
+            }
+        } catch (e) {
+            console.warn('起点地理编码异常:', e);
+        }
     }
     if (!endCoord) {
-        const coord = await geocodeAddress(endAddr);
-        if (coord) endCoord = coord;
+        try {
+            const coord = await geocodeAddress(endAddr);
+            if (coord) {
+                endCoord = coord;
+                console.log('[规划] 终点地理编码成功:', endCoord);
+            }
+        } catch (e) {
+            console.warn('终点地理编码异常:', e);
+        }
     }
+
     if (!startCoord || !endCoord) {
+        statusEl.innerText = '❌ 无法解析起点或终点，请从下拉列表中选择';
         alert('无法解析起点或终点坐标，请从下拉列表中选择校园内的地点，或输入更具体的位置');
         return;
     }
+
+    // 4. 清除旧路线并绘制起点终点标记
     clearRoute();
-    const [startMapLng, startMapLat] = gcj02ToWgs84(startCoord.lng, startCoord.lat);
-    const [endMapLng, endMapLat] = gcj02ToWgs84(endCoord.lng, endCoord.lat);
-    startMarker = L.marker([startMapLat, startMapLng], {
+
+    const [startWgsLng, startWgsLat] = gcj02ToWgs84(startCoord.lng, startCoord.lat);
+    const [endWgsLng, endWgsLat] = gcj02ToWgs84(endCoord.lng, endCoord.lat);
+
+    startMarker = L.marker([startWgsLat, startWgsLng], {
         icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] })
     }).addTo(map).bindPopup(`起点: ${startName}`);
-    endMarker = L.marker([endMapLat, endMapLng], {
+
+    endMarker = L.marker([endWgsLat, endWgsLng], {
         icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [28, 28] })
     }).addTo(map).bindPopup(`终点: ${endName}`);
-    const route = await getAMapRouteByCoords(startCoord, endCoord);
+
+    // 5. 获取路线
+    let route = null;
+    try {
+        route = await getAMapRouteByCoords(startCoord, endCoord);
+    } catch (e) {
+        console.error('获取路线异常:', e);
+    }
+
     if (!route) {
-        const latlngs = [[startMapLat, startMapLng], [endMapLat, endMapLng]];
+        console.warn('[规划] 高德路线失败，使用直线');
+        const latlngs = [[startWgsLat, startWgsLng], [endWgsLat, endWgsLng]];
         currentRouteLayer = L.polyline(latlngs, { color: 'red', weight: 4, dashArray: '5, 10' }).addTo(map);
         map.fitBounds(currentRouteLayer.getBounds());
-        const distance = getDistance({ lat: startMapLat, lng: startMapLng }, { lat: endMapLat, lng: endMapLng }).toFixed(2);
-        document.getElementById('statusText').innerText = `直线距离约 ${distance} 公里（无法获取步行路线）`;
-        speak(`直线距离约 ${distance} 公里，请参考地图`);
+        const distance = getDistance({ lat: startWgsLat, lng: startWgsLng }, { lat: endWgsLat, lng: endWgsLng }).toFixed(2);
+        const msg = `直线距离约 ${distance} 公里（无法获取步行路线）`;
+        statusEl.innerText = msg;
+        speak(msg);
         return;
     }
+
+    // 6. 绘制高德路线
     currentRouteLayer = L.geoJSON(route.geometry, {
         style: { color: '#007aff', weight: 6, opacity: 0.8 }
     }).addTo(map);
     map.fitBounds(currentRouteLayer.getBounds());
+
+    // 7. 播报信息
     const distance = (route.distance / 1000).toFixed(2);
     const duration = Math.round(route.duration / 60);
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
     const modeText = wheelchairMode ? '轮椅优先模式' : '普通模式';
     const baseMsg = `从${startName}到${endName}，路线规划成功（${modeText}），全程约 ${distance} 公里，预计步行 ${duration} 分钟。`;
-    document.getElementById('statusText').innerText = baseMsg;
+    statusEl.innerText = baseMsg;
     speak(baseMsg);
     vibrate(3);
+
+    // 8. 障碍物检测
     const warnings = checkObstaclesAlongRoute(route.geometry, wheelchairMode);
     if (warnings.length > 0) {
         const types = [...new Set(warnings.map(o => o.type))];
@@ -692,19 +781,49 @@ async function planRealRoute() {
     }
 }
 async function useMyLocationAsStart() {
-    if (!navigator.geolocation) { alert('浏览器不支持定位'); return; }
-    document.getElementById('statusText').innerText = '📍 正在获取您的位置...';
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const addr = await reverseGeocode(lat, lng);
-        document.getElementById('startAddress').value = addr;
-        document.getElementById('statusText').innerText = '✅ 已设置起点为当前位置';
-        speak('起点已设置为当前位置');
-    }, (err) => {
-        alert('定位失败：' + err.message);
-        document.getElementById('statusText').innerText = '❌ 定位失败';
-    }, { enableHighAccuracy: true, timeout: 10000 });
+    const statusEl = document.getElementById('statusText');
+    const startInput = document.getElementById('startAddress');
+
+    if (!navigator.geolocation) {
+        alert('浏览器不支持定位');
+        return;
+    }
+
+    statusEl.innerText = '📍 正在获取您的位置...';
+    speak('正在获取您的位置');
+
+    navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            // 获取详细地址
+            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`; // 默认坐标字符串
+            try {
+                const addr = await reverseGeocode(lat, lng);
+                if (addr && !addr.includes('NaN')) address = addr;
+            } catch (e) {
+                console.warn('逆地理编码失败:', e);
+            }
+
+            // 填入输入框，并存储坐标（关键步骤）
+            startInput.value = address;
+            startInput.dataset.location = `${lng},${lat}`;
+            startInput.dataset.name = '我的位置';
+
+            const successMsg = `✅ 起点已设置为：${address}`;
+            statusEl.innerText = successMsg;
+            speak('起点已设置为当前位置');
+
+            // 可选：自动触发规划（若需要可取消注释）
+            // planRealRoute();
+        },
+        (err) => {
+            statusEl.innerText = '❌ 定位失败，请检查权限或网络';
+            alert('定位失败：' + err.message);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
 }
 
 // ========== 自动完成 ==========
@@ -1198,7 +1317,7 @@ async function sos() {
         let address = '';
         try {
             address = await reverseGeocode(lat, lng);
-        } catch (e) {}
+        } catch (e) { }
         const message = prompt('请输入求助详情（可选）', '需要帮助，请尽快联系！');
         const data = { lat, lng, address, message: message || 'SOS 紧急求助' };
         try {
@@ -1273,16 +1392,42 @@ function showStats() {
     trendChart.setOption({ title: { text: '近一周上报趋势' }, xAxis: { type: 'category', data: days }, yAxis: { type: 'value' }, series: [{ type: 'bar', data: counts }] });
 }
 function locateUser() {
-    if (!navigator.geolocation) { alert("浏览器不支持地理定位"); return; }
+    const statusEl = document.getElementById('statusText');
+    if (!navigator.geolocation) {
+        alert("浏览器不支持地理定位");
+        return;
+    }
+    statusEl.innerText = '📍 正在重新定位...';
+
     navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const lat = position.coords.latitude, lng = position.coords.longitude;
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
             map.setView([lat, lng], 16);
-            L.marker([lat, lng], { icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] }) }).addTo(map).bindPopup('您当前的位置').openPopup();
-            speak("已定位到您的位置");
+
+            // 添加位置标记
+            L.marker([lat, lng], {
+                icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] })
+            }).addTo(map).bindPopup('您当前的位置').openPopup();
+
+            // 获取详细地址
+            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            try {
+                const addr = await reverseGeocode(lat, lng);
+                if (addr) address = addr;
+            } catch (e) {
+                console.warn('逆地理编码失败:', e);
+            }
+
+            const successMsg = `📍 当前位置：${address}`;
+            statusEl.innerText = successMsg;
+            speak(successMsg);
         },
-        (error) => { alert("定位失败：" + error.message); },
-        { enableHighAccuracy: true, timeout: 10000 }
+        (error) => {
+            statusEl.innerText = '❌ 定位失败，请检查权限或网络';
+            alert("定位失败：" + error.message);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
 }
 function saveContrastPref(enabled) { localStorage.setItem('highContrast', enabled); }
@@ -1298,7 +1443,6 @@ window.onload = async () => {
     renderFacilityPanel();
     initAutocomplete();
     updateUserStatus();
-    document.getElementById('loginBtn').onclick = handleLoginLogout;
     document.getElementById('voiceBtn').onclick = toggleVoiceRecognition;
     document.getElementById('sosBtn').onclick = sos;
     document.getElementById('reportBtn').onclick = showReportModal;
