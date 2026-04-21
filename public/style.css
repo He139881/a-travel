@@ -544,3 +544,65 @@ th {
         padding: 1px 4px;
     }
 }
+
+/* ========== 地点自动完成下拉样式 ========== */
+.autocomplete-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.autocomplete-items {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    z-index: 9999;
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.autocomplete-item {
+    padding: 12px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+    transition: background 0.15s;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+    background-color: #f0f7ff;
+}
+
+.autocomplete-item .main-text {
+    font-weight: 500;
+    color: #1a1a1a;
+}
+
+.autocomplete-item .sub-text {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+/* 高对比度模式适配 */
+body.high-contrast .autocomplete-items {
+    background: #000;
+    border: 2px solid #ff0;
+}
+body.high-contrast .autocomplete-item {
+    color: #ff0;
+    border-bottom-color: #ff0;
+}
+body.high-contrast .autocomplete-item:hover {
+    background: #333;
+}
