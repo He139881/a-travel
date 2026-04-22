@@ -73,7 +73,29 @@ const requireAdmin = (req, res, next) => {
     }
     next();
 };
-
+// ========== 管理员注册（仅限已有管理员操作） ==========
+router.post('/admin/register', authenticate, requireAdmin, async (req, res) => {
+    const { username, password, nickname } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: '用户名和密码必填' });
+    }
+    try {
+        const hashed = await bcrypt.hash(password, 10);
+        db.run(`INSERT INTO admins (username, password, nickname) VALUES (?, ?, ?)`,
+            [username, hashed, nickname || ''],
+            function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE')) {
+                        return res.status(400).json({ error: '管理员用户名已存在' });
+                    }
+                    return res.status(500).json({ error: err.message });
+                }
+                res.json({ id: this.lastID, message: '管理员注册成功' });
+            });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 module.exports = { router, authenticate, requireAdmin };
 
 // ========== 用户个人信息管理（需认证） ==========

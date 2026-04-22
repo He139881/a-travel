@@ -75,13 +75,14 @@ db.serialize(() => {
     )`);
 
     // 管理员表
-    db.run(`CREATE TABLE IF NOT EXISTS admins (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT DEFAULT 'admin',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+  db.run(`CREATE TABLE IF NOT EXISTS admins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    nickname TEXT,
+    role TEXT DEFAULT 'admin',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
 
     // 道路属性表
     db.run(`CREATE TABLE IF NOT EXISTS road_segments (

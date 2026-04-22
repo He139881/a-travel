@@ -148,20 +148,22 @@
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
                 <button id="addPoiBtn" class="btn-primary" style="width: auto; padding: 10px 20px;">➕ 新增 POI</button>
                 <button id="refreshPoiBtn" class="btn-secondary" style="width: auto; padding: 10px 20px;">🔄 刷新</button>
+                <!-- 新增管理员按钮 -->
+                <button id="addAdminBtn" class="btn-secondary" style="width: auto; padding: 10px 20px;">👤 新增管理员</button>
             </div>
             <div id="poiTableContainer" class="table-container"></div>
         </div>
     </div>
 
+    <!-- SOS 求助记录 Tab -->
     <div id="sosTab" class="tab-content hidden">
-    <div style="padding: 20px;">
-        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <button id="refreshSosBtn" class="btn-secondary">🔄 刷新</button>
+        <div style="padding: 20px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button id="refreshSosBtn" class="btn-secondary">🔄 刷新</button>
+            </div>
+            <div id="sosTableContainer" class="table-container"></div>
         </div>
-        <div id="sosTableContainer" class="table-container"></div>
     </div>
-</div>
-
 
     <!-- 照片查看模态框 -->
     <div id="photoModal" class="modal">
@@ -192,7 +194,7 @@
         </div>
     </div>
 
-    <!-- 设施状态编辑模态框（简单实现，也可用 prompt，此处用自定义简化版） -->
+    <!-- 设施状态编辑模态框 -->
     <div id="facilityEditModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <span class="close-btn" id="closeFacilityModal">&times;</span>
@@ -221,6 +223,29 @@
                 <option value="有台阶">有台阶</option>
             </select>
             <button id="saveFacilityBtn" class="btn-primary" style="margin-top: 15px;">保存</button>
+        </div>
+    </div>
+
+    <!-- 新增管理员模态框 -->
+    <div id="addAdminModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-btn" id="closeAddAdminModal">&times;</span>
+            <h3>👤 新增管理员</h3>
+            <form id="addAdminForm">
+                <div class="form-group">
+                    <label>用户名 *</label>
+                    <input type="text" id="newAdminUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>密码 *</label>
+                    <input type="password" id="newAdminPassword" required>
+                </div>
+                <div class="form-group">
+                    <label>昵称（可选）</label>
+                    <input type="text" id="newAdminNickname">
+                </div>
+                <button type="submit" class="btn-primary">注 册</button>
+            </form>
         </div>
     </div>
 

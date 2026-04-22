@@ -476,14 +476,113 @@ function initTabs() {
             const tab = btn.dataset.tab;
             document.getElementById('obstaclesTab').classList.toggle('hidden', tab !== 'obstacles');
             document.getElementById('poiTab').classList.toggle('hidden', tab !== 'poi');
-            document.getElementById('sosTab').classList.toggle('hidden', tab !== 'sos'); // 增加 SOS Tab 显示切换
+            document.getElementById('sosTab').classList.toggle('hidden', tab !== 'sos');
 
             if (tab === 'poi') {
                 loadPoiList();
                 loadFacilityStatus();
             } else if (tab === 'sos') {
-                loadSosRecords(); // 加载 SOS 数据
+                loadSosRecords();
             }
+        });
+    });
+}
+
+// ========== SOS 记录加载 ==========
+async function loadSosRecords() {
+    try {
+        const res = await fetch(`${API_BASE}/sos`, {
+            headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        renderSosTable(data);
+    } catch (err) {
+        console.error('加载 SOS 记录失败', err);
+    }
+}
+
+function renderSosTable(records) {
+    const container = document.getElementById('sosTableContainer');
+    if (!records || records.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;">暂无 SOS 求助记录</div>';
+        return;
+    }
+
+    let html = `
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户</th>
+                    <th>位置</th>
+                    <th>地址</th>
+                    <th>留言</th>
+                    <th>状态</th>
+                    <th>时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    records.forEach(rec => {
+        const shortAddress = rec.address ? (rec.address.length > 15 ? rec.address.substr(0, 15) + '…' : rec.address) : '-';
+        const shortMessage = rec.message ? (rec.message.length > 10 ? rec.message.substr(0, 10) + '…' : rec.message) : '-';
+        html += `<tr>
+            <td>${rec.id}</td>
+            <td>${rec.username || '匿名'}</td>
+            <td>${rec.lat.toFixed(4)}, ${rec.lng.toFixed(4)}</td>
+            <td title="${rec.address || ''}">${shortAddress}</td>
+            <td title="${rec.message || ''}">${shortMessage}</td>
+            <td>
+                <select class="sos-status" data-id="${rec.id}">
+                    <option value="待处理" ${rec.status === '待处理' ? 'selected' : ''}>待处理</option>
+                    <option value="已处理" ${rec.status === '已处理' ? 'selected' : ''}>已处理</option>
+                </select>
+            </td>
+            <td>${new Date(rec.created_at).toLocaleString()}</td>
+            <td>
+                <button class="update-sos-status" data-id="${rec.id}" style="margin-right:5px;">💾 更新</button>
+                <button class="view-sos-detail" data-id="${rec.id}" data-address="${rec.address || ''}" data-message="${rec.message || ''}" data-username="${rec.username || '匿名'}" data-time="${rec.created_at}">🔍 详情</button>
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    document.querySelectorAll('.update-sos-status').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = btn.dataset.id;
+            const select = document.querySelector(`.sos-status[data-id="${id}"]`);
+            if (!select) return;
+            const newStatus = select.value;
+            try {
+                const res = await fetch(`${API_BASE}/sos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (res.ok) {
+                    alert('状态更新成功');
+                    loadSosRecords();
+                } else {
+                    const err = await res.json();
+                    alert('更新失败：' + (err.error || '未知错误'));
+                }
+            } catch (err) {
+                alert('网络错误，请稍后重试');
+            }
+        });
+    });
+
+    document.querySelectorAll('.view-sos-detail').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const username = btn.dataset.username;
+            const time = new Date(btn.dataset.time).toLocaleString();
+            const address = btn.dataset.address || '无';
+            const message = btn.dataset.message || '无';
+            alert(`用户：${username}\n时间：${time}\n地址：${address}\n留言：${message}`);
         });
     });
 }
@@ -568,6 +667,43 @@ window.onload = async () => {
         renderPoiTable();
     });
 
+    // ========== 新增管理员功能 ==========
+    document.getElementById('addAdminBtn').addEventListener('click', () => {
+        document.getElementById('addAdminModal').style.display = 'flex';
+    });
+
+    document.getElementById('closeAddAdminModal').addEventListener('click', () => {
+        document.getElementById('addAdminModal').style.display = 'none';
+    });
+
+    document.getElementById('addAdminForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('newAdminUsername').value.trim();
+        const password = document.getElementById('newAdminPassword').value;
+        const nickname = document.getElementById('newAdminNickname').value.trim();
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/admin/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
+                body: JSON.stringify({ username, password, nickname })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`管理员 ${username} 注册成功！`);
+                document.getElementById('addAdminModal').style.display = 'none';
+                document.getElementById('addAdminForm').reset();
+            } else {
+                alert('注册失败：' + (data.error || '未知错误'));
+            }
+        } catch (err) {
+            alert('网络错误，请稍后重试');
+        }
+    });
+
     // 点击模态框背景关闭
     window.onclick = (e) => {
         if (e.target.classList.contains('modal')) e.target.style.display = 'none';
@@ -586,105 +722,3 @@ window.onload = async () => {
         await loadObstaclesFromServer();
     }, 30000);
 };
-
-
-async function loadSosRecords() {
-    try {
-        const res = await fetch(`${API_BASE}/sos`, {
-            headers: getAuthHeaders()
-        });
-        const data = await res.json();
-        renderSosTable(data);
-    } catch (err) {
-        console.error('加载 SOS 记录失败', err);
-    }
-}
-
-function renderSosTable(records) {
-    const container = document.getElementById('sosTableContainer');
-    if (!records || records.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;">暂无 SOS 求助记录</div>';
-        return;
-    }
-
-    let html = `
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>用户</th>
-                    <th>位置</th>
-                    <th>地址</th>
-                    <th>留言</th>
-                    <th>状态</th>
-                    <th>时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    records.forEach(rec => {
-        const shortAddress = rec.address ? (rec.address.length > 15 ? rec.address.substr(0, 15) + '…' : rec.address) : '-';
-        const shortMessage = rec.message ? (rec.message.length > 10 ? rec.message.substr(0, 10) + '…' : rec.message) : '-';
-        html += `<tr>
-            <td>${rec.id}</td>
-            <td>${rec.username || '匿名'}</td>
-            <td>${rec.lat.toFixed(4)}, ${rec.lng.toFixed(4)}</td>
-            <td title="${rec.address || ''}">${shortAddress}</td>
-            <td title="${rec.message || ''}">${shortMessage}</td>
-            <td>
-                <select class="sos-status" data-id="${rec.id}">
-                    <option value="待处理" ${rec.status === '待处理' ? 'selected' : ''}>待处理</option>
-                    <option value="已处理" ${rec.status === '已处理' ? 'selected' : ''}>已处理</option>
-                </select>
-            </td>
-            <td>${new Date(rec.created_at).toLocaleString()}</td>
-            <td>
-                <button class="update-sos-status" data-id="${rec.id}" style="margin-right:5px;">💾 更新</button>
-                <button class="view-sos-detail" data-id="${rec.id}" data-address="${rec.address || ''}" data-message="${rec.message || ''}" data-username="${rec.username || '匿名'}" data-time="${rec.created_at}">🔍 详情</button>
-            </td>
-        </tr>`;
-    });
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-
-    // 绑定更新状态事件
-    document.querySelectorAll('.update-sos-status').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = btn.dataset.id;
-            const select = document.querySelector(`.sos-status[data-id="${id}"]`);
-            if (!select) return;
-            const newStatus = select.value;
-            try {
-                const res = await fetch(`${API_BASE}/sos/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({ status: newStatus })
-                });
-                if (res.ok) {
-                    alert('状态更新成功');
-                    loadSosRecords();
-                } else {
-                    const err = await res.json();
-                    alert('更新失败：' + (err.error || '未知错误'));
-                }
-            } catch (err) {
-                alert('网络错误，请稍后重试');
-            }
-        });
-    });
-
-    // 绑定查看详情事件（可用简单 alert 或模态框展示）
-    document.querySelectorAll('.view-sos-detail').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const username = btn.dataset.username;
-            const time = new Date(btn.dataset.time).toLocaleString();
-            const address = btn.dataset.address || '无';
-            const message = btn.dataset.message || '无';
-            alert(`用户：${username}\n时间：${time}\n地址：${address}\n留言：${message}`);
-            // 也可以改成打开一个自定义模态框
-        });
-    });
-}
