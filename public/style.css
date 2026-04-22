@@ -606,3 +606,33 @@ body.high-contrast .autocomplete-item {
 body.high-contrast .autocomplete-item:hover {
     background: #333;
 }
+.input-invalid {
+    border: 2px solid #ff3b30 !important;
+    background-color: #fff5f5;
+}
+
+.autocomplete-no-result {
+    padding: 12px 14px;
+    color: #999;
+    text-align: center;
+    font-style: italic;
+}
+.input-invalid {
+    border: 2px solid #ff3b30 !important;
+    background-color: #fff5f5;
+}
+
+.autocomplete-no-result {
+    padding: 12px 14px;
+    color: #999;
+    text-align: center;
+    font-style: italic;
+}
+
+.route-marker {
+    cursor: grab !important;
+    pointer-events: auto !important;
+}
+.route-marker:active {
+    cursor: grabbing !important;
+}

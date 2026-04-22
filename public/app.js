@@ -239,6 +239,9 @@ let context = {
 };
 let suggestionCache = { start: [], end: [] };
 
+// 用于防抖的计时器
+let routeDragDebounceTimer = null;
+
 // ========== 认证相关 ==========
 function getAuthHeaders() {
     const token = localStorage.getItem('token');
@@ -583,11 +586,13 @@ function clearRoute() {
         startInput.value = '';
         delete startInput.dataset.location;
         delete startInput.dataset.name;
+        startInput.classList.remove('input-invalid');
     }
     if (endInput) {
         endInput.value = '';
         delete endInput.dataset.location;
         delete endInput.dataset.name;
+        endInput.classList.remove('input-invalid');
     }
 
     // 清空建议下拉框
@@ -605,6 +610,7 @@ function clearRoute() {
     // 重置状态栏文字
     document.getElementById('statusText').innerText = '👋 欢迎使用无障碍出行伴侣';
 }
+
 function getDistance(coord1, coord2) {
     const R = 6371;
     const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
@@ -615,6 +621,7 @@ function getDistance(coord1, coord2) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
+
 async function geocodeAddress(address) {
     const fullAddress = `南华大学雨母校区${address}`;
     const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(fullAddress)}&city=衡阳市&key=${AMAP_KEY}&output=JSON`;
@@ -633,6 +640,7 @@ async function geocodeAddress(address) {
         return null;
     }
 }
+
 async function reverseGeocode(lat, lng) {
     const url = `https://restapi.amap.com/v3/geocode/regeo?location=${lng},${lat}&key=${AMAP_KEY}&output=JSON`;
     try {
@@ -688,6 +696,7 @@ function checkObstaclesAlongRoute(geojson, strictMode = false) {
     const threshold = strictMode ? 0.003 : 0.0015;
     return obstacles.filter(obs => coords.some(c => Math.hypot(c.lat - obs.lat, c.lng - obs.lng) < threshold));
 }
+
 function highlightNearbyObstacles(obsArray) {
     obstacleMarkers.forEach(m => m.setIcon(L.divIcon({ className: 'obstacle-marker', html: '⚠️', iconSize: [24, 24] })));
     obsArray.forEach(obs => {
@@ -700,6 +709,63 @@ function highlightNearbyObstacles(obsArray) {
         }
     });
 }
+
+// ========== 拖拽重规划函数 ==========
+async function replanRouteAfterDrag(newStartCoord, newEndCoord, startName, endName) {
+    // 清除旧路线
+    if (currentRouteLayer) map.removeLayer(currentRouteLayer);
+    
+    const statusEl = document.getElementById('statusText');
+    statusEl.innerText = '🔄 重新规划路线中...';
+    
+    // 获取新路线
+    let route = null;
+    try {
+        route = await getAMapRouteByCoords(newStartCoord, newEndCoord);
+    } catch (e) {
+        console.error('获取路线异常:', e);
+    }
+    
+    if (!route) {
+        console.warn('[重规划] 高德路线失败，使用直线');
+        const latlngs = [[newStartCoord.lat, newStartCoord.lng], [newEndCoord.lat, newEndCoord.lng]];
+        currentRouteLayer = L.polyline(latlngs, { color: 'red', weight: 4, dashArray: '5, 10' }).addTo(map);
+        const distance = getDistance({ lat: newStartCoord.lat, lng: newStartCoord.lng }, { lat: newEndCoord.lat, lng: newEndCoord.lng }).toFixed(2);
+        const msg = `直线距离约 ${distance} 公里（无法获取步行路线）`;
+        statusEl.innerText = msg;
+        speak(msg);
+        return;
+    }
+    
+    // 绘制新路线
+    currentRouteLayer = L.geoJSON(route.geometry, {
+        style: { color: '#007aff', weight: 6, opacity: 0.8 }
+    }).addTo(map);
+    
+    // 更新信息
+    const distance = (route.distance / 1000).toFixed(2);
+    const duration = Math.round(route.duration / 60);
+    const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
+    const modeText = wheelchairMode ? '轮椅优先模式' : '普通模式';
+    const baseMsg = `从${startName}到${endName}，路线规划成功（${modeText}），全程约 ${distance} 公里，预计步行 ${duration} 分钟。`;
+    statusEl.innerText = baseMsg;
+    speak(baseMsg);
+    vibrate(3);
+    
+    // 障碍物检测
+    const warnings = checkObstaclesAlongRoute(route.geometry, wheelchairMode);
+    if (warnings.length > 0) {
+        const types = [...new Set(warnings.map(o => o.type))];
+        const warningMsg = wheelchairMode
+            ? `⚠️ 轮椅优先模式：沿途发现 ${warnings.length} 处障碍物（${types.join('、')}），强烈建议手动绕行！`
+            : `📢 普通模式：沿途有 ${warnings.length} 处障碍物，请注意安全。`;
+        speak(warningMsg, 'urgent');
+        if (wheelchairMode) vibrate(4);
+        highlightNearbyObstacles(warnings);
+    }
+}
+
+// ========== 主规划函数 ==========
 async function planRealRoute() {
     const startInput = document.getElementById('startAddress');
     const endInput = document.getElementById('endAddress');
@@ -732,9 +798,13 @@ async function planRealRoute() {
         console.log('[规划] 终点来自缓存:', endCoord, endName);
     }
 
-    // 2. 尝试从本地 POI 列表匹配
+    // 2. 尝试从本地 POI 列表匹配（严格限制在校园 POI 内）
     if (!startCoord) {
-        const poi = poiList.find(p => p.name.includes(startAddr) || startAddr.includes(p.name));
+        const poi = poiList.find(p => 
+            p.name === startAddr || 
+            p.name.includes(startAddr) || 
+            startAddr.includes(p.name)
+        );
         if (poi) {
             startCoord = { lng: poi.lng, lat: poi.lat };
             startName = poi.name;
@@ -742,7 +812,11 @@ async function planRealRoute() {
         }
     }
     if (!endCoord) {
-        const poi = poiList.find(p => p.name.includes(endAddr) || endAddr.includes(p.name));
+        const poi = poiList.find(p => 
+            p.name === endAddr || 
+            p.name.includes(endAddr) || 
+            endAddr.includes(p.name)
+        );
         if (poi) {
             endCoord = { lng: poi.lng, lat: poi.lat };
             endName = poi.name;
@@ -750,34 +824,22 @@ async function planRealRoute() {
         }
     }
 
-    // 3. 调用高德地理编码
+    // 3. 校验坐标是否有效（不再调用高德地理编码）
     if (!startCoord) {
-        try {
-            const coord = await geocodeAddress(startAddr);
-            if (coord) {
-                startCoord = coord;
-                console.log('[规划] 起点地理编码成功:', startCoord);
-            }
-        } catch (e) {
-            console.warn('起点地理编码异常:', e);
-        }
+        statusEl.innerText = '❌ 起点无效，请输入正确的校园地点或从下拉列表中选择';
+        speak('起点无法识别，请重新输入');
+        startInput.classList.add('input-invalid');
+        return;
+    } else {
+        startInput.classList.remove('input-invalid');
     }
     if (!endCoord) {
-        try {
-            const coord = await geocodeAddress(endAddr);
-            if (coord) {
-                endCoord = coord;
-                console.log('[规划] 终点地理编码成功:', endCoord);
-            }
-        } catch (e) {
-            console.warn('终点地理编码异常:', e);
-        }
-    }
-
-    if (!startCoord || !endCoord) {
-        statusEl.innerText = '❌ 无法解析起点或终点，请从下拉列表中选择';
-        alert('无法解析起点或终点坐标，请从下拉列表中选择校园内的地点，或输入更具体的位置');
+        statusEl.innerText = '❌ 终点无效，请输入正确的校园地点或从下拉列表中选择';
+        speak('终点无法识别，请重新输入');
+        endInput.classList.add('input-invalid');
         return;
+    } else {
+        endInput.classList.remove('input-invalid');
     }
 
     // 4. 清除旧路线并绘制起点终点标记
@@ -787,13 +849,90 @@ async function planRealRoute() {
     const startWgsLat = startCoord.lat;
     const endWgsLng = endCoord.lng;
     const endWgsLat = endCoord.lat;
+    
     startMarker = L.marker([startWgsLat, startWgsLng], {
-        icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] })
+        icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] }),
+        draggable: true
     }).addTo(map).bindPopup(`起点: ${startName}`);
 
     endMarker = L.marker([endWgsLat, endWgsLng], {
-        icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [28, 28] })
+        icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [28, 28] }),
+        draggable: true
     }).addTo(map).bindPopup(`终点: ${endName}`);
+
+    // 保存当前起点/终点名称（用于重规划时显示）
+    let currentStartName = startName;
+    let currentEndName = endName;
+
+// ========== 在 dragend 事件外新增辅助函数：根据坐标获取最近 POI 名称 ==========
+function getNearestPoiName(lat, lng, maxDistance = 0.002) {
+    let nearest = null;
+    let minDist = Infinity;
+    poiList.forEach(poi => {
+        const dist = Math.hypot(poi.lat - lat, poi.lng - lng);
+        if (dist < minDist && dist < maxDistance) {
+            minDist = dist;
+            nearest = poi;
+        }
+    });
+    return nearest ? nearest.name : null;
+}
+
+// ========== 修改 startMarker 的 dragend ==========
+startMarker.on('dragend', async (e) => {
+    const newLatLng = e.target.getLatLng();
+    const newStartCoord = { lng: newLatLng.lng, lat: newLatLng.lat };
+    
+    // 优先匹配最近的校园POI
+    const poiName = getNearestPoiName(newLatLng.lat, newLatLng.lng);
+    if (poiName) {
+        currentStartName = poiName;
+    } else {
+        // 无匹配POI时使用逆地理编码
+        try {
+            const addr = await reverseGeocode(newLatLng.lat, newLatLng.lng);
+            currentStartName = addr || `坐标 ${newLatLng.lat.toFixed(4)}, ${newLatLng.lng.toFixed(4)}`;
+        } catch (e) {
+            currentStartName = `坐标 ${newLatLng.lat.toFixed(4)}, ${newLatLng.lng.toFixed(4)}`;
+        }
+    }
+    startMarker.setPopupContent(`起点: ${currentStartName}`);
+    
+    const endPos = endMarker.getLatLng();
+    const newEndCoord = { lng: endPos.lng, lat: endPos.lat };
+    
+    if (routeDragDebounceTimer) clearTimeout(routeDragDebounceTimer);
+    routeDragDebounceTimer = setTimeout(() => {
+        replanRouteAfterDrag(newStartCoord, newEndCoord, currentStartName, currentEndName);
+    }, 300);
+});
+
+// ========== 修改 endMarker 的 dragend ==========
+endMarker.on('dragend', async (e) => {
+    const newLatLng = e.target.getLatLng();
+    const newEndCoord = { lng: newLatLng.lng, lat: newLatLng.lat };
+    
+    const poiName = getNearestPoiName(newLatLng.lat, newLatLng.lng);
+    if (poiName) {
+        currentEndName = poiName;
+    } else {
+        try {
+            const addr = await reverseGeocode(newLatLng.lat, newLatLng.lng);
+            currentEndName = addr || `坐标 ${newLatLng.lat.toFixed(4)}, ${newLatLng.lng.toFixed(4)}`;
+        } catch (e) {
+            currentEndName = `坐标 ${newLatLng.lat.toFixed(4)}, ${newLatLng.lng.toFixed(4)}`;
+        }
+    }
+    endMarker.setPopupContent(`终点: ${currentEndName}`);
+    
+    const startPos = startMarker.getLatLng();
+    const newStartCoord = { lng: startPos.lng, lat: startPos.lat };
+    
+    if (routeDragDebounceTimer) clearTimeout(routeDragDebounceTimer);
+    routeDragDebounceTimer = setTimeout(() => {
+        replanRouteAfterDrag(newStartCoord, newEndCoord, currentStartName, currentEndName);
+    }, 300);
+});
 
     // 5. 获取路线
     let route = null;
@@ -826,7 +965,7 @@ async function planRealRoute() {
     const duration = Math.round(route.duration / 60);
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
     const modeText = wheelchairMode ? '轮椅优先模式' : '普通模式';
-    const baseMsg = `从${startName}到${endName}，路线规划成功（${modeText}），全程约 ${distance} 公里，预计步行 ${duration} 分钟。`;
+    const baseMsg = `从${currentStartName}到${currentEndName}，路线规划成功（${modeText}），全程约 ${distance} 公里，预计步行 ${duration} 分钟。`;
     statusEl.innerText = baseMsg;
     speak(baseMsg);
     vibrate(3);
@@ -843,6 +982,7 @@ async function planRealRoute() {
         highlightNearbyObstacles(warnings);
     }
 }
+
 async function useMyLocationAsStart() {
     const statusEl = document.getElementById('statusText');
     const startInput = document.getElementById('startAddress');
@@ -857,10 +997,7 @@ async function useMyLocationAsStart() {
 
     navigator.geolocation.getCurrentPosition(
         async (pos) => {
-            // GPS 返回 WGS-84，转成 GCJ-02
             const [lng, lat] = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude);
-
-            // 获取详细地址
             let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
             try {
                 const addr = await reverseGeocode(lat, lng);
@@ -869,7 +1006,6 @@ async function useMyLocationAsStart() {
                 console.warn('逆地理编码失败:', e);
             }
 
-            // 填入输入框，并存储坐标
             startInput.value = address;
             startInput.dataset.location = `${lng},${lat}`;
             startInput.dataset.name = '我的位置';
@@ -895,13 +1031,14 @@ function searchLocalPoi(keyword) {
         (poi.type && poi.type.toLowerCase().includes(lowerKey))
     ).slice(0, 10);
 }
+
 function renderSuggestions(type, suggestions) {
     const container = document.getElementById(`${type}Suggestions`);
     const input = document.getElementById(`${type}Address`);
     if (!container) return;
     if (!suggestions || suggestions.length === 0) {
-        container.innerHTML = '';
-        container.style.display = 'none';
+        container.innerHTML = '<div class="autocomplete-no-result">未找到匹配的校园地点</div>';
+        container.style.display = 'block';
         return;
     }
     let html = '';
@@ -925,12 +1062,14 @@ function renderSuggestions(type, suggestions) {
                 input.value = selected.name;
                 input.dataset.location = `${selected.lng},${selected.lat}`;
                 input.dataset.name = selected.name;
+                input.classList.remove('input-invalid');
             }
             container.innerHTML = '';
             container.style.display = 'none';
         });
     });
 }
+
 function debounce(fn, delay) {
     let timer = null;
     return function (...args) {
@@ -938,15 +1077,40 @@ function debounce(fn, delay) {
         timer = setTimeout(() => fn.apply(this, args), delay);
     };
 }
+
 function handleInput(e, type) {
     const keyword = e.target.value.trim();
+    const container = document.getElementById(`${type}Suggestions`);
     if (keyword.length === 0) {
-        document.getElementById(`${type}Suggestions`).style.display = 'none';
+        container.style.display = 'none';
         return;
     }
     const suggestions = searchLocalPoi(keyword);
     renderSuggestions(type, suggestions);
 }
+
+function validateInputField(input) {
+    const value = input.value.trim();
+    if (value === '') {
+        input.classList.remove('input-invalid');
+        return;
+    }
+    if (input.dataset.location) {
+        input.classList.remove('input-invalid');
+        return;
+    }
+    const matched = poiList.some(p => 
+        p.name === value || 
+        p.name.includes(value) || 
+        value.includes(p.name)
+    );
+    if (!matched) {
+        input.classList.add('input-invalid');
+    } else {
+        input.classList.remove('input-invalid');
+    }
+}
+
 function initAutocomplete() {
     const startInput = document.getElementById('startAddress');
     const endInput = document.getElementById('endAddress');
@@ -954,6 +1118,10 @@ function initAutocomplete() {
     const debouncedEnd = debounce((e) => handleInput(e, 'end'), 200);
     startInput.addEventListener('input', debouncedStart);
     endInput.addEventListener('input', debouncedEnd);
+    
+    startInput.addEventListener('blur', () => validateInputField(startInput));
+    endInput.addEventListener('blur', () => validateInputField(endInput));
+    
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.autocomplete-wrapper')) {
             document.querySelectorAll('.autocomplete-items').forEach(el => el.style.display = 'none');
@@ -972,6 +1140,7 @@ function clearContext() {
     };
     speak("好的，已经清空，您可以重新说出需求。");
 }
+
 function parseIntent(command) {
     const lower = command.toLowerCase();
     if (lower.includes('重新说') || lower.includes('取消') || lower.includes('重来') || lower.includes('清空')) {
@@ -1003,7 +1172,6 @@ function parseIntent(command) {
 }
 
 async function executeNavigate(destination) {
-    // 1. 终点匹配
     let matchedPoi = poiList.find(poi =>
         poi.name === destination ||
         poi.name.includes(destination) ||
@@ -1017,53 +1185,38 @@ async function executeNavigate(destination) {
         endName = matchedPoi.name;
         speak(`好的，正在为您规划到${endName}的路线`);
     } else {
-        speak(`正在搜索${destination}的位置，请稍后`);
-        const geoResult = await geocodeAddress(destination);
-        if (!geoResult) {
-            speak(`抱歉，没有找到${destination}，请尝试说出更具体的建筑名称。`);
-            return;
-        }
-        endCoord = geoResult;
-        endName = destination;
+        speak(`抱歉，没有找到${destination}，请尝试说出更具体的建筑名称。`);
+        return;
     }
 
     context.lastDestination = { name: endName, lat: endCoord.lat, lng: endCoord.lng };
 
-    // 2. 获取起点（优先GPS，失败则使用西门作为默认起点）
     let startCoord = null;
     let startName = '当前位置';
 
     if (navigator.geolocation) {
         try {
             const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 30000
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 30000
+                });
             });
-        });
-        // 添加坐标转换
-        const [lng, lat] = wgs84ToGcj02(position.coords.longitude, position.coords.latitude);
-        startCoord = { lat, lng };
-            startCoord = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-            };
-            // 尝试逆地理编码，但不阻塞
+            const [lng, lat] = wgs84ToGcj02(position.coords.longitude, position.coords.latitude);
+            startCoord = { lat, lng };
             reverseGeocode(startCoord.lat, startCoord.lng).then(addr => {
                 startName = addr;
-            }).catch(() => { });
+            }).catch(() => {});
             speak(`已定位到您的位置，开始规划路线`);
         } catch (err) {
             console.warn('GPS定位失败:', err);
-            // 回退到西门（南华大学雨母校区主入口）
             const defaultPoi = poiList.find(p => p.name === '西门');
             if (defaultPoi) {
                 startCoord = { lat: defaultPoi.lat, lng: defaultPoi.lng };
                 startName = defaultPoi.name;
                 speak('无法获取您的位置，已将起点设为西门');
             } else {
-                // 最终回退：地图中心
                 const center = map.getCenter();
                 startCoord = { lat: center.lat, lng: center.lng };
                 startName = '地图中心';
@@ -1071,7 +1224,6 @@ async function executeNavigate(destination) {
             }
         }
     } else {
-        // 浏览器不支持定位，使用西门
         const defaultPoi = poiList.find(p => p.name === '西门');
         if (defaultPoi) {
             startCoord = { lat: defaultPoi.lat, lng: defaultPoi.lng };
@@ -1083,7 +1235,6 @@ async function executeNavigate(destination) {
         }
     }
 
-    // 3. 路线规划
     const route = await getAMapRouteByCoords(startCoord, endCoord);
     if (!route) {
         speak("路线规划失败，请检查网络或稍后再试");
@@ -1092,7 +1243,6 @@ async function executeNavigate(destination) {
 
     context.lastRouteInfo = { distance: route.distance, duration: route.duration };
 
-    // 4. 绘制路线
     clearRoute();
 
     const startWgsLng = startCoord.lng;
@@ -1114,16 +1264,13 @@ async function executeNavigate(destination) {
 
     map.fitBounds(currentRouteLayer.getBounds());
 
-    // 5. 播报路线信息（确保一定执行）
     const distanceKm = (route.distance / 1000).toFixed(1);
     const durationMin = Math.round(route.duration / 60);
     const msg = `从${startName}到${endName}的路线规划成功，距离约${distanceKm}公里，步行大约需要${durationMin}分钟。`;
     document.getElementById('statusText').innerText = msg;
-    console.log('准备播报:', msg); // 调试日志
     speak(msg);
     vibrate(3);
 
-    // 6. 障碍物检测
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
     const warnings = checkObstaclesAlongRoute(route.geometry, wheelchairMode);
     if (warnings.length > 0) {
@@ -1148,7 +1295,9 @@ async function executeNavigate(destination) {
         if (wheelchairMode) vibrate(hasStairs ? 4 : 2);
         highlightNearbyObstacles(warnings);
     }
-} function queryFacility(type) {
+}
+
+function queryFacility(type) {
     let available = [];
     if (type === '电梯') available = poiList.filter(poi => facilityStatus[poi.name]?.elevator === '正常');
     else if (type === '坡道') available = poiList.filter(poi => facilityStatus[poi.name]?.ramp === '正常');
@@ -1165,6 +1314,7 @@ async function executeNavigate(destination) {
     context.lastSearchResults = available;
     context.waitingConfirmation = true;
 }
+
 function nearbyFacilities() {
     const center = map.getCenter();
     const radius = 0.05;
@@ -1182,6 +1332,7 @@ function nearbyFacilities() {
     context.lastSearchResults = nearby;
     context.waitingConfirmation = true;
 }
+
 function handleThen() {
     if (context.lastDestination) {
         speak(`您刚才查询的是${typeof context.lastDestination === 'string' ? context.lastDestination : context.lastDestination.name}，需要我为您重新规划路线吗？`);
@@ -1193,6 +1344,7 @@ function handleThen() {
         speak("您还没有进行过任何查询，请先说出您的需求，比如导航到图书馆。");
     }
 }
+
 function handleHowToGo() {
     if (context.lastDestination) {
         executeNavigate(typeof context.lastDestination === 'string' ? context.lastDestination : context.lastDestination.name);
@@ -1204,6 +1356,7 @@ function handleHowToGo() {
         speak("请先告诉我您想去哪里，比如说导航到食堂。");
     }
 }
+
 function handleDistance() {
     if (context.lastRouteInfo && context.lastRouteInfo.distance) {
         const km = (context.lastRouteInfo.distance / 1000).toFixed(1);
@@ -1213,6 +1366,7 @@ function handleDistance() {
         speak("您还没有规划路线，请先说导航到哪里。");
     }
 }
+
 function handleConfirm() {
     if (context.lastSearchResults.length > 0 && context.lastFacilityType) {
         const first = context.lastSearchResults[0];
@@ -1225,10 +1379,12 @@ function handleConfirm() {
     }
     context.waitingConfirmation = false;
 }
+
 function handleDeny() {
     speak("好的，已取消。您可以重新说出其他需求。");
     context.waitingConfirmation = false;
 }
+
 async function processVoiceCommand(command) {
     if (!command || command.trim() === '') {
         speak("不好意思，我没有听清，可以请你再说一遍吗？");
@@ -1302,6 +1458,7 @@ function initSpeechRecognition() {
     };
     return recog;
 }
+
 function resetInactivityTimer() {
     if (inactivityTimer) clearTimeout(inactivityTimer);
     inactivityTimer = setTimeout(() => {
@@ -1311,6 +1468,7 @@ function resetInactivityTimer() {
         }
     }, inactivityTimeout);
 }
+
 function startListening() {
     if (!SpeechRecognition) {
         alert("浏览器不支持语音识别");
@@ -1328,7 +1486,6 @@ function startListening() {
         document.getElementById('statusText').innerText = '🎙️ 正在聆听... 说出您的需求';
         resetInactivityTimer();
         
-        // 显示语音指令提示（首次使用时）
         const hintShown = localStorage.getItem('voiceHintShown');
         if (!hintShown) {
             setTimeout(() => {
@@ -1342,6 +1499,7 @@ function startListening() {
         return false;
     }
 }
+
 function stopListening() {
     if (recognition && isListening) {
         try { recognition.stop(); } catch (e) {}
@@ -1351,6 +1509,7 @@ function stopListening() {
         document.getElementById('statusText').innerHTML = '👋 欢迎使用无障碍出行伴侣';
     }
 }
+
 function togglePauseResume() {
     if (speechManager.isPaused) {
         speechManager.resume();
@@ -1358,11 +1517,12 @@ function togglePauseResume() {
         speechManager.pause();
     }
 }
+
 function stopSpeaking() {
     speechManager.stop();
 }
+
 function toggleVoiceRecognition() {
-    // 如果正在播报，先暂停播报
     if (speechManager.isSpeaking) {
         speechManager.pause();
         speak("语音播报已暂停，您可以说话");
@@ -1377,7 +1537,6 @@ function toggleVoiceRecognition() {
 
 // ========== 其他功能 ==========
 async function sos() {
-    // 获取当前位置
     if (!navigator.geolocation) {
         alert('浏览器不支持定位，无法发送SOS');
         return;
@@ -1419,8 +1578,8 @@ async function sos() {
         document.getElementById('statusText').innerText = '❌ 定位失败，SOS未发送';
     }, { enableHighAccuracy: true, timeout: 10000 });
 }
-async function showReportModal() {
 
+async function showReportModal() {
     if (!isLoggedIn()) {
         if (confirm('上报障碍物需要登录，是否前往登录？')) {
             window.location.href = 'login.html';
@@ -1443,6 +1602,7 @@ async function showReportModal() {
     }
     document.getElementById('locationHint').innerText = `📍 位置：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
+
 function showStats() {
     document.getElementById('chartModal').style.display = 'flex';
     const accessibleCount = poiList.filter(p => p.score >= 3.5).length;
@@ -1463,6 +1623,7 @@ function showStats() {
     const trendChart = echarts.init(document.getElementById('trendChart'));
     trendChart.setOption({ title: { text: '近一周上报趋势' }, xAxis: { type: 'category', data: days }, yAxis: { type: 'value' }, series: [{ type: 'bar', data: counts }] });
 }
+
 function locateUser() {
     const statusEl = document.getElementById('statusText');
     if (!navigator.geolocation) {
@@ -1473,7 +1634,6 @@ function locateUser() {
 
     navigator.geolocation.getCurrentPosition(
         async (position) => {
-            // GPS 返回 WGS-84，转成 GCJ-02
             const [lng, lat] = wgs84ToGcj02(position.coords.longitude, position.coords.latitude);
             map.setView([lat, lng], 16);
 
@@ -1500,6 +1660,7 @@ function locateUser() {
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
 }
+
 function saveContrastPref(enabled) { localStorage.setItem('highContrast', enabled); }
 function loadContrastPref() { return localStorage.getItem('highContrast') === 'true'; }
 
