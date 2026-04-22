@@ -983,43 +983,49 @@ endMarker.on('dragend', async (e) => {
     }
 }
 
-async function useMyLocationAsStart() {
+// 修改 useMyLocationAsStart，使其返回 Promise
+function useMyLocationAsStart() {
     const statusEl = document.getElementById('statusText');
     const startInput = document.getElementById('startAddress');
 
-    if (!navigator.geolocation) {
-        alert('浏览器不支持定位');
-        return;
-    }
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            alert('浏览器不支持定位');
+            reject(new Error('浏览器不支持定位'));
+            return;
+        }
 
-    statusEl.innerText = '📍 正在获取您的位置...';
-    speak('正在获取您的位置');
+        statusEl.innerText = '📍 正在获取您的位置...';
+        speak('正在获取您的位置');
 
-    navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-            const [lng, lat] = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude);
-            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-            try {
-                const addr = await reverseGeocode(lat, lng);
-                if (addr && !addr.includes('NaN')) address = addr;
-            } catch (e) {
-                console.warn('逆地理编码失败:', e);
-            }
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const [lng, lat] = wgs84ToGcj02(pos.coords.longitude, pos.coords.latitude);
+                let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                try {
+                    const addr = await reverseGeocode(lat, lng);
+                    if (addr && !addr.includes('NaN')) address = addr;
+                } catch (e) {
+                    console.warn('逆地理编码失败:', e);
+                }
 
-            startInput.value = address;
-            startInput.dataset.location = `${lng},${lat}`;
-            startInput.dataset.name = '我的位置';
+                startInput.value = address;
+                startInput.dataset.location = `${lng},${lat}`;
+                startInput.dataset.name = '我的位置';
 
-            const successMsg = `✅ 起点已设置为：${address}`;
-            statusEl.innerText = successMsg;
-            speak('起点已设置为当前位置');
-        },
-        (err) => {
-            statusEl.innerText = '❌ 定位失败，请检查权限或网络';
-            alert('定位失败：' + err.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
+                const successMsg = `✅ 起点已设置为：${address}`;
+                statusEl.innerText = successMsg;
+                speak('起点已设置为当前位置');
+                resolve();
+            },
+            (err) => {
+                statusEl.innerText = '❌ 定位失败，请检查权限或网络';
+                alert('定位失败：' + err.message);
+                reject(err);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+    });
 }
 
 // ========== 自动完成 ==========
@@ -1747,4 +1753,28 @@ window.onload = async () => {
         document.getElementById('refreshIndicator').style.opacity = '0.6';
         setTimeout(() => document.getElementById('refreshIndicator').style.opacity = '1', 300);
     }, 30000);
+};
+
+
+// 供 POI 弹窗调用的导航函数
+window.navigateTo = async function(lat, lng, name) {
+    const endInput = document.getElementById('endAddress');
+    // 设置终点
+    endInput.value = name;
+    endInput.dataset.location = `${lng},${lat}`;
+    endInput.dataset.name = name;
+    endInput.classList.remove('input-invalid');
+
+    const startInput = document.getElementById('startAddress');
+    // 如果起点未设置，先自动定位
+    if (!startInput.value || !startInput.dataset.location) {
+        try {
+            await useMyLocationAsStart();
+        } catch (e) {
+            console.warn('起点定位失败，将使用默认起点');
+            // 定位失败仍可继续规划，planRealRoute 内部会处理起点缺失的情况
+        }
+    }
+    // 执行路线规划
+    planRealRoute();
 };
