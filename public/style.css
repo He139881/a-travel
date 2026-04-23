@@ -636,3 +636,10 @@ body.high-contrast .autocomplete-item:hover {
 .route-marker:active {
     cursor: grabbing !important;
 }
+.custom-route-marker {
+    cursor: grab !important;
+    pointer-events: auto !important;
+}
+.custom-route-marker:active {
+    cursor: grabbing !important;
+}
