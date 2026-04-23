@@ -319,6 +319,40 @@ let context = {
 let suggestionCache = { start: [], end: [] };
 let routeDragDebounceTimer = null;
 
+// 在 buildRoadGraph 函数之前添加这两个函数
+
+// 1. 找到距离坐标最近的图节点
+function findNearestNodeKey(graph, lat, lng) {
+    let minDist = Infinity;
+    let nearestKey = null;
+    
+    graph.nodes().forEach(key => {
+        const node = graph.node(key);
+        if (!node) return;
+        
+        const dist = Math.hypot(node.lat - lat, node.lng - lng);
+        if (dist < minDist) {
+            minDist = dist;
+            nearestKey = key;
+        }
+    });
+    
+    return { key: nearestKey, distance: minDist };
+}
+
+// 2. 计算两点间距离（公里）
+function getDistance(coord1, coord2) {
+    const R = 6371; // 地球半径（公里）
+    const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+    const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+
 // ========== 自定义路网辅助函数 ==========
 function buildRoadGraph(wheelchairMode = true) {
     const g = new graphlib.Graph({ directed: false });
@@ -359,7 +393,44 @@ function buildRoadGraph(wheelchairMode = true) {
         g.setEdge(key1, key2, weight);
     });
 
-    // 3️⃣ 强制连通关键地点（西门 ↔ 图书馆）
+    // 在 buildRoadGraph 函数中，找到添加边的部分
+roadSegments.forEach(seg => {
+    const key1 = `${seg.start_lat.toFixed(6)},${seg.start_lng.toFixed(4)}`;
+    const key2 = `${seg.end_lat.toFixed(6)},${seg.end_lng.toFixed(4)}`;
+    
+    // 计算距离（米）
+    let weight = getDistance(
+        { lat: seg.start_lat, lng: seg.start_lng },
+        { lat: seg.end_lat, lng: seg.end_lng }
+    ) * 1000;  // 转换为米
+    
+    // 确保权重为正数
+    if (weight <= 0) weight = 1;
+    
+    // 轮椅模式下的权重调整
+    if (wheelchairMode) {
+        const passable = seg.wheelchair_passable;
+        
+        // 不可通行的跳过
+        if (passable === '否' || passable === '否（有台阶）' || seg.segment_type === '台阶') {
+            return;
+        }
+        
+        // 难通行的增加权重（惩罚）
+        if (passable === '坡道陡，仅电动轮椅可通行') {
+            weight *= 5;
+        }
+        if (seg.segment_type === '坡道台阶混合') {
+            weight *= 3;
+        }
+    }
+    
+    // 添加边（双向）
+    g.setEdge(key1, key2, weight);
+    g.setEdge(key2, key1, weight);  // 确保双向连通
+});
+
+    /* // 3️⃣ 强制连通关键地点（西门 ↔ 图书馆）
     const criticalPairs = [
         { start: [26.875201, 112.516666], end: [26.879809, 112.515740] },
     ];
@@ -379,68 +450,152 @@ function buildRoadGraph(wheelchairMode = true) {
                 console.log(`🔗 强制添加桥接: ${startKey} ↔ ${endKey}`);
             }
         }
-    });
+    }); */
+
+    // 在 buildRoadGraph 函数的 return g 之前添加
+console.log(`📊 路网统计: 节点=${g.nodeCount()}, 边=${g.edgeCount()}`);
+
+// 检查西门和图书馆相关节点
+const xiMenKey = Object.keys(g.nodes()).find(key => key.includes('26.87520'));
+const libKey = Object.keys(g.nodes()).find(key => key.includes('26.87959'));
+if (xiMenKey && libKey) {
+    console.log(`西门节点: ${xiMenKey}`);
+    console.log(`图书馆节点: ${libKey}`);
+    const neighbors = g.neighbors(xiMenKey) || [];
+    console.log(`西门节点的邻居数: ${neighbors.length}`);
+    if (neighbors.length > 0) {
+        console.log(`第一个邻居: ${neighbors[0]}`);
+    }
+}
+
+return g;
 
     return g;
 }   
 
+// 替换原有的 findAccessiblePath 函数
 function findAccessiblePath(graph, startKey, endKey) {
-    const distances = {}, previous = {};
-    const pq = new SimplePriorityQueue((a, b) => a.distance - b.distance);
+    console.log('🔍 开始查找路径:', startKey, '→', endKey);
     
+    // 1. 先检查起点和终点是否存在
+    if (!graph.hasNode(startKey)) {
+        console.error('❌ 起点节点不存在:', startKey);
+        return null;
+    }
+    if (!graph.hasNode(endKey)) {
+        console.error('❌ 终点节点不存在:', endKey);
+        return null;
+    }
+    
+    // 2. 先检查连通性（BFS）
+    let isConnected = false;
+    const bfsQueue = [startKey];
+    const bfsVisited = new Set();
+    bfsVisited.add(startKey);
+    
+    while (bfsQueue.length > 0) {
+        const current = bfsQueue.shift();
+        if (current === endKey) {
+            isConnected = true;
+            break;
+        }
+        const neighbors = graph.neighbors(current) || [];
+        for (const neighbor of neighbors) {
+            if (!bfsVisited.has(neighbor)) {
+                bfsVisited.add(neighbor);
+                bfsQueue.push(neighbor);
+            }
+        }
+    }
+    
+    if (!isConnected) {
+        console.error('❌ 起点和终点不连通！');
+        console.log(`   从起点出发能到达 ${bfsVisited.size} 个节点，总节点 ${graph.nodeCount()}`);
+        return null;
+    }
+    
+    console.log('✅ 连通性检查通过，开始 Dijkstra 搜索...');
+    
+    // 3. 使用 Dijkstra 找最短路径
+    const distances = {};
+    const previous = {};
+    const pq = new SimplePriorityQueue((a, b) => a.dist - b.dist);
+    
+    // 初始化
     graph.nodes().forEach(node => {
         distances[node] = Infinity;
         previous[node] = null;
     });
     
     distances[startKey] = 0;
-    pq.enqueue({ node: startKey, distance: 0 });
-
-    while (!pq.isEmpty()) {
+    pq.enqueue({ node: startKey, dist: 0 });
+    
+    let iterations = 0;
+    const maxIterations = 10000;
+    
+    while (!pq.isEmpty() && iterations < maxIterations) {
         const current = pq.dequeue();
         const currentNode = current.node;
+        const currentDist = current.dist;
         
-        if (currentNode === endKey) break;
-        if (current.distance > distances[currentNode]) continue;
+        iterations++;
         
-        const neighbors = graph.outEdges(currentNode) || [];
-        neighbors.forEach(edge => {
-            const neighbor = edge.w;
-            const weight = graph.edge(edge);
+        if (currentNode === endKey) {
+            console.log(`✅ 找到最短路径！迭代次数: ${iterations}`);
+            break;
+        }
+        
+        if (currentDist > distances[currentNode]) continue;
+        
+        const neighbors = graph.neighbors(currentNode) || [];
+        
+        for (const neighbor of neighbors) {
+            // 获取边的权重
+            let weight = graph.edge(currentNode, neighbor);
+            if (weight === undefined) {
+                // 尝试反向获取
+                weight = graph.edge(neighbor, currentNode);
+            }
+            if (weight === undefined) {
+                console.warn(`边权重未定义: ${currentNode} -> ${neighbor}`);
+                continue;
+            }
+            
             const newDist = distances[currentNode] + weight;
             
             if (newDist < distances[neighbor]) {
                 distances[neighbor] = newDist;
                 previous[neighbor] = currentNode;
-                pq.enqueue({ node: neighbor, distance: newDist });
+                pq.enqueue({ node: neighbor, dist: newDist });
             }
-        });
+        }
     }
-
+    
+    // 重构路径
+    if (distances[endKey] === Infinity) {
+        console.error('❌ Dijkstra 未找到路径！');
+        return null;
+    }
+    
     const path = [];
     let node = endKey;
     while (node) {
         const coord = graph.node(node);
-        if (coord) path.unshift(coord);
+        if (coord) {
+            path.unshift(coord);
+        }
         node = previous[node];
     }
+    
+    // 计算总距离
+    let totalDistance = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+        totalDistance += getDistance(path[i], path[i + 1]) * 1000;
+    }
+    
+    console.log(`📏 路径节点数: ${path.length}, 总距离: ${totalDistance.toFixed(0)} 米`);
     return path;
 }
-// 找到距离坐标最近的图节点
-function findNearestNodeKey(graph, lat, lng) {
-    let minDist = Infinity;
-    let nearestKey = null;
-    graph.nodes().forEach(key => {
-        const node = graph.node(key);
-        const dist = Math.hypot(node.lat - lat, node.lng - lng);
-        if (dist < minDist) {
-            minDist = dist;
-            nearestKey = key;
-        }
-    });
-    return { key: nearestKey, distance: minDist };
-}
-
 // 将路径节点数组转为 GeoJSON
 function pathToGeoJSON(pathNodes) {
     if (!pathNodes || pathNodes.length < 2) return null;
@@ -973,7 +1128,7 @@ async function planRealRoute() {
     const endAddr = endInput.value.trim();
     const statusEl = document.getElementById('statusText');
 
-    // 提前获取轮椅优先模式状态，避免重复声明
+    // 提前获取轮椅优先模式状态
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
 
     if (!startAddr || !endAddr) {
@@ -1042,104 +1197,122 @@ async function planRealRoute() {
     let usedCustomRoute = false;
 
     // ========== 1. 尝试自定义轮椅优先路网 ==========
-// ========== 1. 尝试自定义轮椅优先路网 ==========
-if (wheelchairMode && roadSegments && roadSegments.length > 0) {
-    console.log('♿ 尝试使用自定义无障碍路网...');
-    const graph = buildRoadGraph(true); // 轮椅优先
+    if (wheelchairMode && roadSegments && roadSegments.length > 0) {
+        console.log('♿ 尝试使用自定义无障碍路网...');
+        const graph = buildRoadGraph(true);
 
-    // 放大吸附容差，并支持临时虚拟边连接
-    const MAX_SNAP_DISTANCE = 0.012; // 约130米
+        const MAX_SNAP_DISTANCE = 0.03; // 约330米
 
-    // ---------- 处理起点吸附 ----------
-    let startNodeKey, startNodeCoord;
-    const startSnap = findNearestNodeKey(graph, startCoord.lat, startCoord.lng);
-    console.log(`起点吸附: 最近节点距离 ${(startSnap.distance * 111000).toFixed(0)} 米`);
+        // 处理起点吸附
+        let startNodeKey, startNodeCoord;
+        const startSnap = findNearestNodeKey(graph, startCoord.lat, startCoord.lng);
+        console.log(`起点吸附: 最近节点距离 ${(startSnap.distance * 111000).toFixed(0)} 米`);
 
-    if (startSnap.distance < MAX_SNAP_DISTANCE) {
-        startNodeKey = startSnap.key;
-        startNodeCoord = graph.node(startSnap.key);
-    } else {
-        // 创建临时起点节点并添加虚拟连接边
-        startNodeKey = `temp_start_${Date.now()}`;
-        startNodeCoord = { lat: startCoord.lat, lng: startCoord.lng };
-        graph.setNode(startNodeKey, startNodeCoord);
-        const nearestKey = startSnap.key;
-        const nearestCoord = graph.node(nearestKey);
-        const dist = getDistance(startNodeCoord, nearestCoord) * 1000; // 米
-        graph.setEdge(startNodeKey, nearestKey, dist);
-        console.log(`✅ 起点距离路网过远，已添加临时连接边 (${dist.toFixed(0)}米)`);
-    }
-
-    // ---------- 处理终点吸附 ----------
-    let endNodeKey, endNodeCoord;
-    const endSnap = findNearestNodeKey(graph, endCoord.lat, endCoord.lng);
-    console.log(`终点吸附: 最近节点距离 ${(endSnap.distance * 111000).toFixed(0)} 米`);
-
-    if (endSnap.distance < MAX_SNAP_DISTANCE) {
-        endNodeKey = endSnap.key;
-        endNodeCoord = graph.node(endSnap.key);
-    } else {
-        // 创建临时终点节点并添加虚拟连接边
-        endNodeKey = `temp_end_${Date.now()}`;
-        endNodeCoord = { lat: endCoord.lat, lng: endCoord.lng };
-        graph.setNode(endNodeKey, endNodeCoord);
-        const nearestKey = endSnap.key;
-        const nearestCoord = graph.node(nearestKey);
-        const dist = getDistance(endNodeCoord, nearestCoord) * 1000; // 米
-        graph.setEdge(endNodeKey, nearestKey, dist);
-        console.log(`✅ 终点距离路网过远，已添加临时连接边 (${dist.toFixed(0)}米)`);
-    }
-
-    console.log(`路网节点总数: ${graph.nodeCount()}, 边总数: ${graph.edgeCount()}`);
-
-    // 搜索路径
-    const pathNodes = findAccessiblePath(graph, startNodeKey, endNodeKey);
-
-    if (pathNodes && pathNodes.length >= 2) {
-        console.log('✅ 自定义路网路径找到，节点数:', pathNodes.length);
-
-        const geojson = pathToGeoJSON(pathNodes);
-        currentRouteLayer = L.geoJSON(geojson, {
-            style: { color: '#34c759', weight: 6, opacity: 0.9 }
-        }).addTo(map);
-        map.fitBounds(currentRouteLayer.getBounds());
-
-        // 计算距离和时间
-        let totalDist = 0;
-        for (let i = 0; i < pathNodes.length - 1; i++) {
-            totalDist += getDistance(
-                { lat: pathNodes[i].lat, lng: pathNodes[i].lng },
-                { lat: pathNodes[i + 1].lat, lng: pathNodes[i + 1].lng }
-            ) * 1000;
-        }
-        const distanceKm = (totalDist / 1000).toFixed(2);
-        const durationMin = Math.round(totalDist / 1.2 / 60);
-
-        const msg = `♿ 轮椅优先路线规划成功，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
-        statusEl.innerText = msg;
-        speak(msg);
-        vibrate(3);
-
-        // 检查沿途上报的障碍物
-        const warnings = checkObstaclesAlongRoute(geojson, true);
-        if (warnings.length > 0) {
-            const types = [...new Set(warnings.map(o => o.type))];
-            const warningMsg = `⚠️ 沿途仍有 ${warnings.length} 处上报的障碍物（${types.join('、')}），请注意。`;
-            speak(warningMsg, 'urgent');
-            highlightNearbyObstacles(warnings);
+        if (startSnap.distance < MAX_SNAP_DISTANCE) {
+            startNodeKey = startSnap.key;
+            startNodeCoord = graph.node(startSnap.key);
+        } else {
+            startNodeKey = `temp_start_${Date.now()}`;
+            startNodeCoord = { lat: startCoord.lat, lng: startCoord.lng };
+            graph.setNode(startNodeKey, startNodeCoord);
+            const nearestKey = startSnap.key;
+            const nearestCoord = graph.node(nearestKey);
+            const dist = getDistance(startNodeCoord, nearestCoord) * 1000;
+            graph.setEdge(startNodeKey, nearestKey, dist);
+            console.log(`✅ 起点距离路网过远，已添加临时连接边 (${dist.toFixed(0)}米)`);
         }
 
-        usedCustomRoute = true;
-    } else {
-        console.warn('❌ 自定义路网未找到可行路径');
-        const reason = (startSnap.distance >= MAX_SNAP_DISTANCE) ? '起点离路网太远' :
-                       (endSnap.distance >= MAX_SNAP_DISTANCE) ? '终点离路网太远' :
-                       '路网不连通或无可通行路径';
-        console.warn('失败原因:', reason);
-        const fallbackMsg = '⚠️ 轮椅路线规划失败，已切换普通步行路线，请注意沿途障碍。';
-        speak(fallbackMsg);
+        // 处理终点吸附
+        let endNodeKey, endNodeCoord;
+        const endSnap = findNearestNodeKey(graph, endCoord.lat, endCoord.lng);
+        console.log(`终点吸附: 最近节点距离 ${(endSnap.distance * 111000).toFixed(0)} 米`);
+
+        if (endSnap.distance < MAX_SNAP_DISTANCE) {
+            endNodeKey = endSnap.key;
+            endNodeCoord = graph.node(endSnap.key);
+        } else {
+            endNodeKey = `temp_end_${Date.now()}`;
+            endNodeCoord = { lat: endCoord.lat, lng: endCoord.lng };
+            graph.setNode(endNodeKey, endNodeCoord);
+            const nearestKey = endSnap.key;
+            const nearestCoord = graph.node(nearestKey);
+            const dist = getDistance(endNodeCoord, nearestCoord) * 1000;
+            graph.setEdge(endNodeKey, nearestKey, dist);
+            console.log(`✅ 终点距离路网过远，已添加临时连接边 (${dist.toFixed(0)}米)`);
+        }
+
+        console.log(`路网节点总数: ${graph.nodeCount()}, 边总数: ${graph.edgeCount()}`);
+
+        // 搜索路径
+        const pathNodes = findAccessiblePath(graph, startNodeKey, endNodeKey);
+
+        if (pathNodes && pathNodes.length >= 2) {
+            console.log('✅ 自定义路网路径找到，节点数:', pathNodes.length);
+
+            const geojson = pathToGeoJSON(pathNodes);
+
+            // 清除旧路线
+            if (currentRouteLayer) {
+                map.removeLayer(currentRouteLayer);
+            }
+
+            // 绘制新路线
+            currentRouteLayer = L.geoJSON(geojson, {
+                style: {
+                    color: '#6034c7',
+                    weight: 6,
+                    opacity: 0.9,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }
+            }).addTo(map);
+
+            // 将路线置于顶层
+            currentRouteLayer.bringToFront();
+
+            // 调整地图视野
+            map.fitBounds(currentRouteLayer.getBounds());
+
+            console.log('geojson 完整内容:', JSON.stringify(geojson));
+
+            console.log('✅ 路线已绘制，坐标点数:', geojson.coordinates.length);
+
+            // 计算距离和时间
+            let totalDist = 0;
+            for (let i = 0; i < pathNodes.length - 1; i++) {
+                totalDist += getDistance(
+                    { lat: pathNodes[i].lat, lng: pathNodes[i].lng },
+                    { lat: pathNodes[i + 1].lat, lng: pathNodes[i + 1].lng }
+                ) * 1000;
+            }
+            const distanceKm = (totalDist / 1000).toFixed(2);
+            const durationMin = Math.round(totalDist / 1.2 / 60);
+
+            const msg = `♿ 轮椅优先路线规划成功，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
+            statusEl.innerText = msg;
+            speak(msg);
+            vibrate(3);
+
+            // 检查沿途上报的障碍物
+            const warnings = checkObstaclesAlongRoute(geojson, true);
+            if (warnings.length > 0) {
+                const types = [...new Set(warnings.map(o => o.type))];
+                const warningMsg = `⚠️ 沿途仍有 ${warnings.length} 处上报的障碍物（${types.join('、')}），请注意。`;
+                speak(warningMsg, 'urgent');
+                highlightNearbyObstacles(warnings);
+            }
+
+            usedCustomRoute = true;
+        } else {
+            console.warn('❌ 自定义路网未找到可行路径');
+            const reason = (startSnap.distance >= MAX_SNAP_DISTANCE) ? '起点离路网太远' :
+                           (endSnap.distance >= MAX_SNAP_DISTANCE) ? '终点离路网太远' :
+                           '路网不连通或无可通行路径';
+            console.warn('失败原因:', reason);
+            const fallbackMsg = '⚠️ 轮椅路线规划失败，已切换普通步行路线，请注意沿途障碍。';
+            speak(fallbackMsg);
+        }
     }
-}
 
     // ========== 2. 如果自定义路网未使用，则调用高德API ==========
     if (!usedCustomRoute) {
@@ -1172,11 +1345,9 @@ if (wheelchairMode && roadSegments && roadSegments.length > 0) {
             const duration = Math.round(route.duration / 60);
             const modeText = wheelchairMode ? '轮椅优先模式' : '普通模式';
             let baseMsg = `从${startName}到${endName}，路线规划成功（${modeText}），全程约 ${distance} 公里，预计步行 ${duration} 分钟。`;
-            // 如果是轮椅模式但走的是高德路线，说明是回退的
             if (wheelchairMode) {
                 baseMsg = `⚠️ 轮椅路线不可用，已切换普通路线。` + baseMsg.replace('轮椅优先模式', '普通模式');
             }
-            statusEl.innerText = baseMsg;
             statusEl.innerText = baseMsg;
             speak(baseMsg);
             vibrate(3);
@@ -1194,8 +1365,7 @@ if (wheelchairMode && roadSegments && roadSegments.length > 0) {
         }
     }
 
-    // ========== 3. 创建起点和终点标记（确保只创建一次） ==========
-    // 创建起点标记
+    // ========== 3. 创建起点和终点标记 ==========
     const startIconHtml = `
         <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
             <div style="font-size: 32px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🚩</div>
@@ -1212,7 +1382,6 @@ if (wheelchairMode && roadSegments && roadSegments.length > 0) {
         draggable: true
     }).addTo(map).bindPopup(`起点: ${startName}`);
 
-    // 创建终点标记
     const endIconHtml = `
         <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
             <div style="font-size: 32px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🏁</div>
