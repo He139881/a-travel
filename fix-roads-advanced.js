@@ -6,7 +6,7 @@ const DB_PATH = path.join(__dirname, 'routes', 'data.db');
 const db = new sqlite3.Database(DB_PATH);
 
 // 合并端点容差（米）
-const SNAP_TOLERANCE = 0.00015; // 约15米
+const SNAP_TOLERANCE = 0.0003; 
 
 console.log('🔧 高级路网连通性修复...\n');
 
@@ -75,7 +75,7 @@ db.all(`SELECT * FROM road_segments`, async (err, rows) => {
             }
         }
 
-        if (bestPair && minDist < 0.002) { // 只连接距离小于200米的
+        if (bestPair && minDist < 0.005) { // 只连接距离小于200米的
             stmt.run(
                 bestPair.coordA.lng, bestPair.coordA.lat,
                 bestPair.coordB.lng, bestPair.coordB.lat
