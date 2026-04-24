@@ -25,13 +25,15 @@ const pinyinMap = {
 
 // 二级地标（区域聚合点）
 const regionPois = [
-    { name: "三省园宿舍区", lat: 26.888983, lng: 112.520248, type: "宿舍区" },
-    { name: "雨母楼教学区", lat: 26.884949, lng: 112.522902, type: "教学楼群" },
-    { name: "笃行园宿舍区", lat: 26.888505, lng: 112.525452, type: "宿舍区" },
-    { name: "南门入口区", lat: 26.880822, lng: 112.523210, type: "校门" },
-    { name: "东门入口区", lat: 26.886840, lng: 112.527157, type: "校门" },
-    { name: "松霖建筑与设计艺术学院", lat: 26.886844, lng: 112.524511, type: "学院楼" },
-    { name: "计算机/电气学院区", lat: 26.8869, lng: 112.5198, type: "学院楼群" }
+    { name: "三省园宿舍区", lat: 26.882949, lng: 112.514840, type: "宿舍区" },
+    { name: "雨母楼教学区", lat: 26.878689, lng: 112.516328, type: "教学楼群" },
+    { name: "笃行园宿舍区", lat: 26.882430, lng: 112.519101, type: "宿舍区" },
+     { name: "尚学园宿舍区", lat: 26.878054, lng: 112.518099, type: "宿舍区" },
+    { name: "南门入口区", lat: 26.875201, lng: 112.516666, type: "校门" },
+    { name: "东门入口区",lat: 26.882019, lng: 112.520827, type: "校门" },
+    { name: "松霖建筑与设计艺术学院", lat: 26.880721, lng: 112.517594, type: "学院楼" },
+    { name: "计算机/电气学院区", lat: 26.881274, lng: 112.513861, type: "学院楼群" },
+    { name: "语言文学院区",lat: 26.881597, lng: 112.517655, type: "学院楼群" }
 ];
 
 function getPinyinInitials(str) {
@@ -294,7 +296,6 @@ class SimplePriorityQueue {
     }
 }
 
-
 // ========== 语音识别相关 ==========
 let recognition = null;
 let isListening = false;
@@ -318,8 +319,6 @@ let context = {
 };
 let suggestionCache = { start: [], end: [] };
 let routeDragDebounceTimer = null;
-
-// 在 buildRoadGraph 函数之前添加这两个函数
 
 // 1. 找到距离坐标最近的图节点
 function findNearestNodeKey(graph, lat, lng) {
@@ -393,87 +392,25 @@ function buildRoadGraph(wheelchairMode = true) {
         g.setEdge(key1, key2, weight);
     });
 
-    // 在 buildRoadGraph 函数中，找到添加边的部分
-roadSegments.forEach(seg => {
-    const key1 = `${seg.start_lat.toFixed(6)},${seg.start_lng.toFixed(4)}`;
-    const key2 = `${seg.end_lat.toFixed(6)},${seg.end_lng.toFixed(4)}`;
-    
-    // 计算距离（米）
-    let weight = getDistance(
-        { lat: seg.start_lat, lng: seg.start_lng },
-        { lat: seg.end_lat, lng: seg.end_lng }
-    ) * 1000;  // 转换为米
-    
-    // 确保权重为正数
-    if (weight <= 0) weight = 1;
-    
-    // 轮椅模式下的权重调整
-    if (wheelchairMode) {
-        const passable = seg.wheelchair_passable;
-        
-        // 不可通行的跳过
-        if (passable === '否' || passable === '否（有台阶）' || seg.segment_type === '台阶') {
-            return;
-        }
-        
-        // 难通行的增加权重（惩罚）
-        if (passable === '坡道陡，仅电动轮椅可通行') {
-            weight *= 5;
-        }
-        if (seg.segment_type === '坡道台阶混合') {
-            weight *= 3;
+    console.log(`📊 路网统计: 节点=${g.nodeCount()}, 边=${g.edgeCount()}`);
+
+    // 检查西门和图书馆相关节点
+    const xiMenKey = Object.keys(g.nodes()).find(key => key.includes('26.87520'));
+    const libKey = Object.keys(g.nodes()).find(key => key.includes('26.87959'));
+    if (xiMenKey && libKey) {
+        console.log(`西门节点: ${xiMenKey}`);
+        console.log(`图书馆节点: ${libKey}`);
+        const neighbors = g.neighbors(xiMenKey) || [];
+        console.log(`西门节点的邻居数: ${neighbors.length}`);
+        if (neighbors.length > 0) {
+            console.log(`第一个邻居: ${neighbors[0]}`);
         }
     }
-    
-    // 添加边（双向）
-    g.setEdge(key1, key2, weight);
-    g.setEdge(key2, key1, weight);  // 确保双向连通
-});
-
-    /* // 3️⃣ 强制连通关键地点（西门 ↔ 图书馆）
-    const criticalPairs = [
-        { start: [26.875201, 112.516666], end: [26.879809, 112.515740] },
-    ];
-
-    criticalPairs.forEach(pair => {
-        const startKey = findNearestNodeKey(g, pair.start[0], pair.start[1]).key;
-        const endKey = findNearestNodeKey(g, pair.end[0], pair.end[1]).key;
-        if (startKey && endKey && startKey !== endKey) {
-            const existing = g.outEdges(startKey)?.some(e => e.w === endKey) ||
-                            (g.outEdges(endKey) || []).some(e => e.w === startKey);
-            if (!existing) {
-                const weight = getDistance(
-                    { lat: pair.start[0], lng: pair.start[1] },
-                    { lat: pair.end[0], lng: pair.end[1] }
-                ) * 1000;
-                g.setEdge(startKey, endKey, weight);
-                console.log(`🔗 强制添加桥接: ${startKey} ↔ ${endKey}`);
-            }
-        }
-    }); */
-
-    // 在 buildRoadGraph 函数的 return g 之前添加
-console.log(`📊 路网统计: 节点=${g.nodeCount()}, 边=${g.edgeCount()}`);
-
-// 检查西门和图书馆相关节点
-const xiMenKey = Object.keys(g.nodes()).find(key => key.includes('26.87520'));
-const libKey = Object.keys(g.nodes()).find(key => key.includes('26.87959'));
-if (xiMenKey && libKey) {
-    console.log(`西门节点: ${xiMenKey}`);
-    console.log(`图书馆节点: ${libKey}`);
-    const neighbors = g.neighbors(xiMenKey) || [];
-    console.log(`西门节点的邻居数: ${neighbors.length}`);
-    if (neighbors.length > 0) {
-        console.log(`第一个邻居: ${neighbors[0]}`);
-    }
-}
-
-return g;
 
     return g;
-}   
+}
 
-// 替换原有的 findAccessiblePath 函数
+// 查找无障碍路径（Dijkstra）
 function findAccessiblePath(graph, startKey, endKey) {
     console.log('🔍 开始查找路径:', startKey, '→', endKey);
     
@@ -596,6 +533,7 @@ function findAccessiblePath(graph, startKey, endKey) {
     console.log(`📏 路径节点数: ${path.length}, 总距离: ${totalDistance.toFixed(0)} 米`);
     return path;
 }
+
 // 将路径节点数组转为 GeoJSON
 function pathToGeoJSON(pathNodes) {
     if (!pathNodes || pathNodes.length < 2) return null;
@@ -750,24 +688,40 @@ function addPoiMarkers() {
         detailMarkers.push(marker);
     });
 
-    regionPois.forEach(region => {
-        const html = `
-            <div style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
-                <span style="font-size: 16px;">📍</span>
-                <span style="color: #1a1a1a; font-size: 13px; font-weight: 600; white-space: nowrap;">${region.name}</span>
-            </div>
-        `;
-        const marker = L.marker([region.lat, region.lng], {
-            icon: L.divIcon({
-                className: 'region-marker',
-                html: html,
-                iconSize: [120, 30],
-                popupAnchor: [0, -12]
-            })
-        });
-        marker.bindPopup(`<b>${region.name}</b><br>类型: ${region.type}<br><i>放大查看详细建筑</i>`);
-        regionMarkers.push(marker);
+  regionPois.forEach(region => {
+    const html = `
+        <div style="
+            display: flex; 
+            align-items: center; 
+            gap: 3px; 
+            padding: 2px 6px; 
+            border-radius: 10px;
+            background: none;
+        ">
+            <span style="
+                font-size: 18px; 
+                filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
+            ">📍</span>
+            <span style="
+                color: #fff; 
+                font-size: 13px; 
+                font-weight: 700; 
+                white-space: nowrap;
+                text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 0 8px rgba(0,0,0,0.5);
+            ">${region.name}</span>
+        </div>
+    `;
+    const marker = L.marker([region.lat, region.lng], {
+        icon: L.divIcon({
+            className: 'region-marker',
+            html: html,
+            iconSize: [150, 30],
+            popupAnchor: [0, -12]
+        })
     });
+    marker.bindPopup(`<b>${region.name}</b><br>类型: ${region.type}<br><i>放大查看详细建筑</i>`);
+    regionMarkers.push(marker);
+});
 
     const campusCenter = [26.879, 112.516];
     campusMarker = L.marker(campusCenter, {
@@ -790,9 +744,9 @@ function updateMarkersByZoom() {
     detailMarkers.forEach(m => map.removeLayer(m));
     regionMarkers.forEach(m => map.removeLayer(m));
     if (campusMarker) map.removeLayer(campusMarker);
-    if (currentZoom >= 15) {
+    if (currentZoom >= 16) {
         detailMarkers.forEach(m => m.addTo(map));
-    } else if (currentZoom >= 13) {
+    } else if (currentZoom >= 14) {
         regionMarkers.forEach(m => m.addTo(map));
     } else {
         if (campusMarker) campusMarker.addTo(map);
@@ -976,17 +930,6 @@ function clearRoute() {
     document.getElementById('statusText').innerText = '👋 欢迎使用无障碍出行伴侣';
 }
 
-function getDistance(coord1, coord2) {
-    const R = 6371;
-    const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
-    const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
 async function geocodeAddress(address) {
     const fullAddress = `南华大学雨母校区${address}`;
     const url = `https://restapi.amap.com/v3/geocode/geo?address=${encodeURIComponent(fullAddress)}&city=衡阳市&key=${AMAP_KEY}&output=JSON`;
@@ -1106,7 +1049,6 @@ async function replanRouteAfterDrag(newStartCoord, newEndCoord, startName, endNa
         baseMsg = `⚠️ 轮椅路线不可用，已切换普通路线。` + baseMsg.replace('轮椅优先模式', '普通模式');
     }
     statusEl.innerText = baseMsg;
-    statusEl.innerText = baseMsg;
     speak(baseMsg);
     vibrate(3);
     const warnings = checkObstaclesAlongRoute(route.geometry, wheelchairMode);
@@ -1128,7 +1070,6 @@ async function planRealRoute() {
     const endAddr = endInput.value.trim();
     const statusEl = document.getElementById('statusText');
 
-    // 提前获取轮椅优先模式状态
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
 
     if (!startAddr || !endAddr) {
@@ -1145,7 +1086,6 @@ async function planRealRoute() {
     let startCoord = null, endCoord = null;
     let startName = startAddr, endName = endAddr;
 
-    // 解析起点坐标
     if (startInput.dataset.location) {
         const [lng, lat] = startInput.dataset.location.split(',').map(Number);
         startCoord = { lng, lat };
@@ -1158,7 +1098,6 @@ async function planRealRoute() {
         }
     }
 
-    // 解析终点坐标
     if (endInput.dataset.location) {
         const [lng, lat] = endInput.dataset.location.split(',').map(Number);
         endCoord = { lng, lat };
@@ -1171,7 +1110,6 @@ async function planRealRoute() {
         }
     }
 
-    // 起点有效性检查
     if (!startCoord) {
         statusEl.innerText = '❌ 起点无效，请输入正确的校园地点或从下拉列表中选择';
         speak('起点无法识别，请重新输入');
@@ -1181,7 +1119,6 @@ async function planRealRoute() {
         startInput.classList.remove('input-invalid');
     }
 
-    // 终点有效性检查
     if (!endCoord) {
         statusEl.innerText = '❌ 终点无效，请输入正确的校园地点或从下拉列表中选择';
         speak('终点无法识别，请重新输入');
@@ -1191,19 +1128,16 @@ async function planRealRoute() {
         endInput.classList.remove('input-invalid');
     }
 
-    // 清除旧路线
     clearRoute();
 
     let usedCustomRoute = false;
 
-    // ========== 1. 尝试自定义轮椅优先路网 ==========
     if (wheelchairMode && roadSegments && roadSegments.length > 0) {
         console.log('♿ 尝试使用自定义无障碍路网...');
         const graph = buildRoadGraph(true);
 
-        const MAX_SNAP_DISTANCE = 0.03; // 约330米
+        const MAX_SNAP_DISTANCE = 0.03;
 
-        // 处理起点吸附
         let startNodeKey, startNodeCoord;
         const startSnap = findNearestNodeKey(graph, startCoord.lat, startCoord.lng);
         console.log(`起点吸附: 最近节点距离 ${(startSnap.distance * 111000).toFixed(0)} 米`);
@@ -1222,7 +1156,6 @@ async function planRealRoute() {
             console.log(`✅ 起点距离路网过远，已添加临时连接边 (${dist.toFixed(0)}米)`);
         }
 
-        // 处理终点吸附
         let endNodeKey, endNodeCoord;
         const endSnap = findNearestNodeKey(graph, endCoord.lat, endCoord.lng);
         console.log(`终点吸附: 最近节点距离 ${(endSnap.distance * 111000).toFixed(0)} 米`);
@@ -1243,7 +1176,6 @@ async function planRealRoute() {
 
         console.log(`路网节点总数: ${graph.nodeCount()}, 边总数: ${graph.edgeCount()}`);
 
-        // 搜索路径
         const pathNodes = findAccessiblePath(graph, startNodeKey, endNodeKey);
 
         if (pathNodes && pathNodes.length >= 2) {
@@ -1251,12 +1183,10 @@ async function planRealRoute() {
 
             const geojson = pathToGeoJSON(pathNodes);
 
-            // 清除旧路线
             if (currentRouteLayer) {
                 map.removeLayer(currentRouteLayer);
             }
 
-            // 绘制新路线
             currentRouteLayer = L.geoJSON(geojson, {
                 style: {
                     color: '#6034c7',
@@ -1267,17 +1197,9 @@ async function planRealRoute() {
                 }
             }).addTo(map);
 
-            // 将路线置于顶层
             currentRouteLayer.bringToFront();
-
-            // 调整地图视野
             map.fitBounds(currentRouteLayer.getBounds());
 
-            console.log('geojson 完整内容:', JSON.stringify(geojson));
-
-            console.log('✅ 路线已绘制，坐标点数:', geojson.coordinates.length);
-
-            // 计算距离和时间
             let totalDist = 0;
             for (let i = 0; i < pathNodes.length - 1; i++) {
                 totalDist += getDistance(
@@ -1293,7 +1215,6 @@ async function planRealRoute() {
             speak(msg);
             vibrate(3);
 
-            // 检查沿途上报的障碍物
             const warnings = checkObstaclesAlongRoute(geojson, true);
             if (warnings.length > 0) {
                 const types = [...new Set(warnings.map(o => o.type))];
@@ -1314,7 +1235,6 @@ async function planRealRoute() {
         }
     }
 
-    // ========== 2. 如果自定义路网未使用，则调用高德API ==========
     if (!usedCustomRoute) {
         console.log('使用高德地图步行规划');
         let route = null;
@@ -1365,7 +1285,6 @@ async function planRealRoute() {
         }
     }
 
-    // ========== 3. 创建起点和终点标记 ==========
     const startIconHtml = `
         <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
             <div style="font-size: 32px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🚩</div>
@@ -1398,11 +1317,9 @@ async function planRealRoute() {
         draggable: true
     }).addTo(map).bindPopup(`终点: ${endName}`);
 
-    // 添加历史记录
     addHistoryItem({ name: startName, lat: startCoord.lat, lng: startCoord.lng });
     addHistoryItem({ name: endName, lat: endCoord.lat, lng: endCoord.lng });
 
-    // 绑定拖拽重新规划事件
     let currentStartName = startName;
     let currentEndName = endName;
 
@@ -1862,26 +1779,26 @@ function toggleVoiceRecognition() {
 
 // ========== 其他功能 ==========
 async function sos() {
-    if (!navigator.geolocation) { alert('浏览器不支持定位，无法发送SOS'); return; }
-    document.getElementById('statusText').innerText = '🚨 正在获取位置并发送求助...';
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        let address = '';
-        try { address = await reverseGeocode(lat, lng); } catch (e) { }
-        const message = prompt('请输入求助详情（可选）', '需要帮助，请尽快联系！');
-        const data = { lat, lng, address, message: message || 'SOS 紧急求助' };
-        try {
-            const res = await fetch(`${API_BASE}/sos`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(data) });
-            if (res.ok) {
-                const msg = 'SOS求助已发送！管理员将尽快处理。';
-                speak(msg, 'urgent');
-                document.getElementById('statusText').innerHTML = `<span style="color:red;">🚨 ${msg}</span>`;
-                vibrate(4);
-                alert(msg);
-            } else throw new Error('服务器响应失败');
-        } catch (err) { console.error('SOS发送失败:', err); alert('网络错误，SOS求助发送失败，请稍后重试'); }
-    }, (err) => { alert('获取位置失败，无法发送SOS'); document.getElementById('statusText').innerText = '❌ 定位失败，SOS未发送'; }, { enableHighAccuracy: true, timeout: 10000 });
+    if (!navigator.geolocation) { alert('浏览器不支持定位，无法发送 SOS'); return; }
+    document.getElementById('sosModal').style.display = 'flex';
+    document.getElementById('statusText').innerText = '📍 正在获取您的位置…';
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude, lng = position.coords.longitude;
+            let address = ''; try { address = await reverseGeocode(lat, lng); } catch (e) {}
+            document.getElementById('sosAddress').innerText = address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            document.getElementById('sosModal').dataset.lat = lat;
+            document.getElementById('sosModal').dataset.lng = lng;
+            document.getElementById('sosModal').dataset.address = address;
+        },
+        (err) => {
+            document.getElementById('sosAddress').innerText = '定位失败，将使用默认位置';
+            document.getElementById('sosModal').dataset.lat = 26.879;
+            document.getElementById('sosModal').dataset.lng = 112.516;
+            document.getElementById('sosModal').dataset.address = '';
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+    );
 }
 async function showReportModal() {
     if (!isLoggedIn()) { if (confirm('上报障碍物需要登录，是否前往登录？')) window.location.href = 'login.html'; return; }
@@ -1951,9 +1868,7 @@ window.onload = async () => {
     document.getElementById('sosBtn').onclick = sos;
     document.getElementById('reportBtn').onclick = showReportModal;
     document.getElementById('statsBtn').onclick = showStats;
-    document.getElementById('closeModal').onclick = () => document.getElementById('chartModal').style.display = 'none';
     document.getElementById('closeReportModal').onclick = () => document.getElementById('reportModal').style.display = 'none';
-    document.getElementById('agreePrivacy').onclick = () => document.getElementById('privacyModal').style.display = 'none';
     document.getElementById('locateBtn').onclick = locateUser;
     document.getElementById('searchRouteBtn').addEventListener('click', planRealRoute);
     document.getElementById('useMyLocationBtn').addEventListener('click', useMyLocationAsStart);
@@ -1962,9 +1877,6 @@ window.onload = async () => {
     if (pauseResumeBtn) pauseResumeBtn.onclick = togglePauseResume;
     const stopSpeakBtn = document.getElementById('stopSpeakBtn');
     if (stopSpeakBtn) stopSpeakBtn.onclick = stopSpeaking;
-    const contrastBtn = document.getElementById('contrastBtn');
-    if (loadContrastPref()) document.body.classList.add('high-contrast');
-    contrastBtn.onclick = () => { document.body.classList.toggle('high-contrast'); saveContrastPref(document.body.classList.contains('high-contrast')); };
     document.getElementById('clearDataBtn').onclick = () => { if (confirm('清除所有本地数据？不可恢复。')) { localStorage.clear(); location.reload(); } };
     window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
     const photoInput = document.getElementById('obstaclePhoto');
@@ -1997,7 +1909,42 @@ window.onload = async () => {
             document.getElementById('photoPreview').style.display = 'none';
         } else { alert('上报失败，请稍后重试'); }
     });
-    setInterval(() => { renderFacilityPanel(); document.getElementById('refreshIndicator').style.opacity = '0.6'; setTimeout(() => document.getElementById('refreshIndicator').style.opacity = '1', 300); }, 30000);
+    // SOS 发送按钮监听
+    document.getElementById('confirmSosBtn').addEventListener('click', async () => {
+        const lat = parseFloat(document.getElementById('sosModal').dataset.lat);
+        const lng = parseFloat(document.getElementById('sosModal').dataset.lng);
+        const address = document.getElementById('sosModal').dataset.address || '';
+        const message = document.getElementById('sosMessage').value.trim() || 'SOS 紧急求助';
+        const data = { lat, lng, address, message };
+        try {
+            const res = await fetch(`${API_BASE}/sos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                const msg = 'SOS求助已发送！管理员将尽快处理。';
+                speak(msg, 'urgent');
+                document.getElementById('statusText').innerHTML = `<span style="color:red;">🚨 ${msg}</span>`;
+                vibrate(4);
+                document.getElementById('sosModal').style.display = 'none';
+                document.getElementById('sosMessage').value = '';
+            } else {
+                alert('发送失败，请稍后重试');
+            }
+        } catch (err) { alert('网络错误，请稍后重试'); }
+    });
+    document.getElementById('closeSosModal').addEventListener('click', () => {
+        document.getElementById('sosModal').style.display = 'none';
+    });
+    setInterval(() => {
+        renderFacilityPanel();
+        const refreshIndicator = document.getElementById('refreshIndicator');
+        if (refreshIndicator) {
+            refreshIndicator.style.opacity = '0.6';
+            setTimeout(() => { if (refreshIndicator) refreshIndicator.style.opacity = '1'; }, 300);
+        }
+    }, 30000);
 };
 
 window.navigateTo = async function (lat, lng, name) {

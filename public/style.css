@@ -1,10 +1,5 @@
-/* 基础重置 */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
+/* ========== 基础重置 ========== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
     font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
     background: #f5f7fa;
@@ -12,243 +7,334 @@ body {
     line-height: 1.5;
 }
 
-/* 高对比度主题 */
-body.high-contrast {
-    background: #000 !important;
-    color: #ff0 !important;
-}
-body.high-contrast button,
-body.high-contrast a,
-body.high-contrast .btn-primary {
-    background: #ff0 !important;
-    color: #000 !important;
-    border: 2px solid #fff !important;
-    font-weight: bold;
-}
-body.high-contrast #status {
-    background: #000 !important;
-    color: #ff0 !important;
-    border: 1px solid #ff0;
-}
-body.high-contrast .modal-content {
-    background: #000 !important;
-    color: #ff0 !important;
-    border: 2px solid #ff0;
-}
-body.high-contrast input,
-body.high-contrast select {
-    background: #333;
-    color: #ff0;
-    border: 1px solid #ff0;
-}
-body.high-contrast .facility-panel,
-body.high-contrast #routePrefPanel {
-    background: #000;
-    border: 2px solid #ff0;
-    color: #ff0;
-}
-body.high-contrast .panel-header {
-    background: #ff0;
-    color: #000;
-}
-body.high-contrast .facility-item {
-    border-bottom-color: #ff0;
-}
-
-/* 地图容器 */
+/* ========== 地图 ========== */
 #map {
-    height: 70vh;
+    height: 100vh;
     width: 100%;
     z-index: 1;
 }
 
-/* 状态栏 */
+/* ========== 状态栏 ========== */
 #status {
     position: fixed;
     top: 10px;
-    left: 10px;
+    left: 60px;             /* 留出缩放控件空间 */
     right: 10px;
-    background: rgba(255,255,255,0.95);
-    padding: 12px 15px;
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(10px);
+    padding: 6px 16px;
     border-radius: 30px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     z-index: 1000;
-    font-size: 16px;
-    text-align: center;
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(0,0,0,0.05);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+#statusText {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.status-actions button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px 4px;
 }
 
-/* 控制面板 */
-#control-panel {
+/* ========== 左侧面板通用 ========== */
+.left-panel {
     position: fixed;
-    bottom: 20px;
-    left: 10px;
-    right: 10px;
+    top: 80px;
+    left: 12px;
+    z-index: 1001;
     display: flex;
-    justify-content: space-around;
-    background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(10px);
-    padding: 12px 8px;
-    border-radius: 50px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    z-index: 1000;
-    border: 1px solid rgba(255,255,255,0.5);
+    flex-direction: column;
+    gap: 10px;
+    width: 250px;
 }
-#control-panel button,
-#control-panel a {
-    flex: 1;
-    margin: 0 5px;
+
+/* 毛玻璃卡片 */
+.glass-card {
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(14px);
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    padding: 14px;
+}
+
+/* ========== 搜索卡片 ========== */
+.input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.input-row input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    font-size: 13px;
+    background: white;
+}
+.arrow {
     text-align: center;
+    color: #007aff;
+    font-size: 16px;
+    margin: -2px 0;
+}
+.btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+.btn-primary {
+    flex: 1;
+    padding: 10px 0;
+    border-radius: 20px;
     background: #007aff;
     color: white;
     border: none;
-    padding: 12px 0;
-    border-radius: 40px;
-    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    text-decoration: none;
-    transition: all 0.2s;
-    box-shadow: 0 2px 6px rgba(0,122,255,0.3);
 }
-#control-panel button:active,
-#control-panel a:active {
-    transform: scale(0.96);
-    background: #005bb5;
-}
-
-/* 路径规划偏好面板（成员A新增） */
-#routePrefPanel {
-    position: fixed;
-    bottom: 110px;
-    left: 10px;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(8px);
-    padding: 12px 15px;
+.btn-danger {
+    flex: 1;
+    padding: 10px 0;
     border-radius: 20px;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    font-size: 13px;
-    width: auto;
-    min-width: 200px;
-    border: 1px solid rgba(0,0,0,0.05);
+    background: #ff3b30;
+    color: white;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
 }
-.pref-title {
-    font-weight: bold;
-    margin-bottom: 8px;
-    font-size: 14px;
-    color: #007aff;
-}
-.pref-item {
-    margin-bottom: 8px;
+.options-row {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+.wheelchair-label {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.text-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #007aff;
+    cursor: pointer;
+}
+.pref-wrapper {
+    position: relative;
+    margin-top: 6px;
+}
+#prefDropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: rgba(255,255,255, 0.96);
+    backdrop-filter: blur(20px);
+    padding: 16px;
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+    z-index: 1001;
+    min-width: 230px;
+    display: none;
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.pref-title {
+    font-weight: 700;
+    margin-bottom: 12px;
+    font-size: 15px;
+    color: #1a1a1a;
+    display: flex;
+    align-items: center;
     gap: 6px;
 }
-.pref-item label:first-child {
-    font-weight: 600;
-    margin-right: 6px;
+
+.pref-item {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
+
+.pref-item label:first-child {
+    font-weight: 500;
+    font-size: 13px;
+    color: #333;
+}
+
+/* 自定义开关外观 */
+.pref-item input[type="checkbox"] {
+    width: 44px;
+    height: 24px;
+    appearance: none;
+    background: #d1d1d6;
+    border-radius: 12px;
+    position: relative;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.pref-item input[type="checkbox"]::before {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+}
+.pref-item input[type="checkbox"]:checked {
+    background: #007aff;
+}
+.pref-item input[type="checkbox"]:checked::before {
+    transform: translateX(20px);
+}
+
 .obstacle-types {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-left: 6px;
+    margin-top: 8px;
 }
 .obstacle-types label {
     font-size: 12px;
-    background: #f0f0f0;
-    padding: 2px 8px;
+    background: #f0f0f5;
+    padding: 6px 12px;
     border-radius: 20px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: 0.15s;
 }
-.obstacle-types input {
-    margin-right: 3px;
-    transform: scale(0.9);
+.obstacle-types input[type="checkbox"] {
+    width: auto;
+    height: auto;
+    appearance: checkbox;
+    background: none;
+}
+.obstacle-types label:has(input:checked) {
+    background: #007aff15;
+    color: #007aff;
+    font-weight: 500;
 }
 
-/* 实时设施状态面板（成员A新增） */
+/* ========== 功能按钮卡片 ========== */
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.action-btn {
+    background: rgba(0,0,0,0.04);
+    border: none;
+    border-radius: 16px;
+    padding: 10px 4px;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+.voice-btn { background: rgba(0,122,255,0.1); }
+.sos-btn { background: rgba(255,59,48,0.1); }
+.user-status-text {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+    margin-top: 6px;
+}
+
+/* 底部工具条 */
+.bottom-tools {
+    display: flex;
+    gap: 8px;
+}
+.tool-btn {
+    flex: 1;
+    background: rgba(0,0,0,0.04);
+    border: none;
+    border-radius: 20px;
+    padding: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #333;
+}
+
+/* ========== 设施面板 ========== */
 .facility-panel {
     position: fixed;
     top: 80px;
     right: 10px;
-    width: 240px;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(14px);
     border-radius: 20px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
     z-index: 1000;
-    font-size: 13px;
     overflow: hidden;
-    border: 1px solid #ddd;
     max-height: 300px;
     display: flex;
     flex-direction: column;
+    border: 1px solid rgba(0,0,0,0.04);
+}
+.facility-panel.compact {
+    width: auto;
+    min-width: 120px;
 }
 .panel-header {
-    background: #007aff;
-    color: white;
-    padding: 10px 12px;
+    cursor: pointer;
+    background: transparent;
+    color: #007aff;
+    padding: 10px 16px;
     font-weight: bold;
     display: flex;
     justify-content: space-between;
-    font-size: 14px;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    border-radius: 20px;
 }
 #facilityList {
     padding: 8px 12px;
     overflow-y: auto;
     max-height: 250px;
+    display: none;
 }
 .facility-item {
     padding: 8px 0;
     border-bottom: 1px solid #eee;
     cursor: pointer;
-    transition: 0.1s;
 }
-.facility-item:hover {
-    background: #f0f7ff;
-}
-.facility-name {
-    font-weight: 600;
-}
-.facility-detail {
-    font-size: 11px;
-    color: #555;
-    margin-top: 4px;
-}
-.status-normal {
-    color: #34c759;
-}
-.status-warning {
-    color: #ff3b30;
-}
-#refreshIndicator {
-    font-size: 10px;
-    background: rgba(0,0,0,0.2);
-    padding: 2px 6px;
-    border-radius: 20px;
-}
+.facility-item:hover { background: #f0f7ff; }
+.facility-name { font-weight: 600; }
+.facility-detail { font-size: 11px; color: #555; margin-top: 4px; }
+.status-normal { color: #34c759; }
+.status-warning { color: #ff3b30; }
 
-/* 高亮障碍物标记动画 */
-.obstacle-highlight {
-    filter: drop-shadow(0 0 6px red);
-    animation: pulse 0.8s infinite;
-}
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    100% { transform: scale(1.2); opacity: 0.8; }
-}
-
-/* 模态框通用 */
+/* ========== 模态框通用 ========== */
 .modal {
     display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.6);
     z-index: 2000;
     align-items: center;
@@ -264,382 +350,100 @@ body.high-contrast .facility-item {
     box-shadow: 0 20px 40px rgba(0,0,0,0.3);
     position: relative;
 }
-.modal-content.large {
-    width: 90%;
-    max-width: 600px;
-}
 .close-btn {
     position: absolute;
-    top: 15px;
-    right: 20px;
+    top: 15px; right: 20px;
     font-size: 28px;
     cursor: pointer;
     color: #888;
-    font-weight: bold;
 }
-.close-btn:hover {
-    color: #000;
+.close-btn:hover { color: #000; }
+
+/* 表单 */
+form label { display: block; margin-top: 15px; font-weight: 600; color: #555; }
+form input, form select {
+    width: 100%; padding: 12px; margin-top: 5px;
+    border: 1px solid #ddd; border-radius: 16px;
+    font-size: 16px; background: #f9f9f9;
+}
+form .btn-primary {
+    background: #007aff; color: white; border: none;
+    padding: 14px 20px; border-radius: 40px;
+    font-size: 18px; font-weight: bold; width: 100%;
+    margin-top: 20px; cursor: pointer;
 }
 
-/* 表单样式 */
-form label {
-    display: block;
-    margin-top: 15px;
-    font-weight: 600;
-    color: #555;
+/* ========== 语音提示面板 ========== */
+.voice-hint {
+    position: fixed;
+    bottom: 140px; left: 10px; right: 10px;
+    background: rgba(0,0,0,0.85);
+    color: white; padding: 15px;
+    border-radius: 20px; z-index: 2000;
+    display: none; max-width: 400px; margin: 0 auto;
 }
-form input,
-form select {
-    width: 100%;
-    padding: 12px;
-    margin-top: 5px;
-    border: 1px solid #ddd;
+.hint-header { display: flex; justify-content: space-between; align-items: center; }
+.hint-header button { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+.hint-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.voice-cmd {
+    background: #007aff; padding: 6px 12px;
+    border-radius: 20px; font-size: 13px; cursor: pointer;
+}
+
+/* ========== 自动完成 & 其他辅助 ========== */
+.autocomplete-wrapper { position: relative; width: 100%; }
+.autocomplete-items {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: white; border-radius: 16px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    z-index: 9999; max-height: 250px; overflow-y: auto;
+    margin-top: 4px; border: 1px solid #e9ecef;
+    display: none;
+}
+.autocomplete-item {
+    padding: 12px 14px; cursor: pointer;
+    border-bottom: 1px solid #f0f0f0; font-size: 14px;
+}
+.autocomplete-item:hover { background-color: #f0f7ff; }
+.autocomplete-no-result {
+    padding: 12px 14px; color: #999; text-align: center; font-style: italic;
+}
+.input-invalid {
+    border: 2px solid #ff3b30 !important;
+    background-color: #fff5f5;
+}
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 600px) {
+    .left-panel { width: calc(100% - 20px); left: 10px; }
+    .facility-panel { width: 200px; top: 70px; }
+}
+
+/* 优化上报表单 */
+#reportModal .modal-content {
+    max-width: 460px;
+}
+#reportLocationInfo {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%);
+    padding: 14px;
     border-radius: 16px;
-    font-size: 16px;
-    background: #f9f9f9;
+    margin-bottom: 15px;
+    font-size: 14px;
+    border: 1px solid #d0e0ff;
 }
-.btn-primary {
+#reportForm select,
+#reportForm input[type="text"] {
+    background: #f9f9fb;
+    border: 1px solid #e2e2e8;
+    border-radius: 14px;
+    padding: 12px;
+    font-size: 15px;
+}
+#reportForm .btn-primary {
     background: #007aff;
-    color: white;
-    border: none;
-    padding: 14px 20px;
-    border-radius: 40px;
-    font-size: 18px;
-    font-weight: bold;
-    width: 100%;
-    margin-top: 20px;
-    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,122,255,0.3);
     transition: 0.2s;
 }
-.btn-primary:hover {
-    background: #005bb5;
-}
-
-/* 管理员页面样式 */
-.admin-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.btn-back {
-    background: #6c757d;
-    color: white;
-    padding: 8px 16px;
-    border-radius: 30px;
-    text-decoration: none;
-}
-.stats-cards {
-    display: grid;
-    grid-template-columns: repeat(4,1fr);
-    gap: 15px;
-    padding: 20px;
-}
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    text-align: center;
-}
-.card h3 {
-    font-size: 16px;
-    color: #666;
-}
-.card div {
-    font-size: 32px;
-    font-weight: bold;
-    margin-top: 8px;
-    color: #007aff;
-}
-.charts-container {
-    display: flex;
-    flex-wrap: wrap;
-    padding: 0 20px;
-    gap: 20px;
-}
-.charts-container > div {
-    flex: 1 1 45%;
-    background: white;
-    border-radius: 20px;
-    padding: 15px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-.filter-bar {
-    display: flex;
-    gap: 10px;
-    padding: 20px;
-    background: white;
-    margin: 20px;
-    border-radius: 40px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.filter-bar input,
-.filter-bar select {
-    flex: 1;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 30px;
-}
-.table-container {
-    padding: 0 20px 20px;
-    overflow-x: auto;
-}
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-th, td {
-    padding: 15px;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-}
-th {
-    background: #f8f9fa;
-    font-weight: 600;
-}
-.photo-thumb {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.status-badge {
-    padding: 4px 10px;
-    border-radius: 30px;
-    font-size: 12px;
-    font-weight: bold;
-}
-.status-未处理 { background: #ff3b30; color: white; }
-.status-处理中 { background: #ff9500; color: white; }
-.status-已处理 { background: #34c759; color: white; }
-
-/* 清除数据按钮 */
-#clearDataBtn {
-    padding: 12px 16px;
-    border-radius: 40px;
-    border: none;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    cursor: pointer;
-}
-
-/* 移动端适配 */
-@media (max-width: 600px) {
-    .stats-cards { grid-template-columns: repeat(2,1fr); }
-    .charts-container > div { flex: 1 1 100%; }
-    .facility-panel { width: 200px; top: 70px; }
-    #routePrefPanel { min-width: 160px; bottom: 100px; }
-}
-
-/* 路线规划面板样式 */
-#routePlan {
-  position: fixed;
-  top: 5cm;
-  left: 12px;
-  z-index: 9999;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 14px 16px;
-  border-radius: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(6px);
-  width: 220px;
-}
-
-#routePlan h4 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  color: #333;
-  text-align: center;
-}
-
-/* 路线规划面板样式 */
-#routePlan {
-  position: fixed;
-  top: 5cm;
-  left: 12px;
-  z-index: 9999;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 14px 16px;
-  border-radius: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(6px);
-  width: 220px;
-}
-
-#routePlan h4 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  color: #333;
-  text-align: center;
-}
-
-/* 规划面板输入框 */
-#routePlan input {
-  width: 100%;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 14px;
-  font-size: 14px;
-  background: #f9f9f9;
-  box-sizing: border-box;
-}
-
-#routePlan input:focus {
-  outline: none;
-  border-color: #007aff;
-  background: #fff;
-}
-
-/* 按钮行：左右对称布局核心 */
-#routePlan .btn-row {
-  display: flex;
-  justify-content: space-between; /* 左右两端对齐，中间留白 */
-  align-items: center;
-  width: 100%;
-}
-
-/* 规划面板按钮：保持现有宽度不变 */
-#routePlan button {
-  width: 48%; /* 保持你现在的按钮宽度，不改动 */
-  padding: 9px 0;
-  border: none;
-  border-radius: 14px;
-  background: #007aff;
-  color: white;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-#routePlan button:hover {
-  background: #0066cc;
-}
-
-/* POI 标记点样式优化 */
-.custom-poi {
-    background: transparent !important;
-    border: none !important;
-}
-
-.poi-label {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    letter-spacing: 0.3px;
-    backdrop-filter: blur(4px);
-}
-
-/* 地图缩放时隐藏过小的标签（可选） */
-@media (max-width: 600px) {
-    .poi-label {
-        font-size: 9px;
-        padding: 1px 4px;
-    }
-}
-
-/* ========== 地点自动完成下拉样式 ========== */
-.autocomplete-wrapper {
-    position: relative;
-    width: 100%;
-}
-
-.autocomplete-items {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-    z-index: 9999;
-    max-height: 250px;
-    overflow-y: auto;
-    margin-top: 4px;
-    border: 1px solid #e9ecef;
-}
-
-.autocomplete-item {
-    padding: 12px 14px;
-    cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 14px;
-    transition: background 0.15s;
-}
-
-.autocomplete-item:last-child {
-    border-bottom: none;
-}
-
-.autocomplete-item:hover,
-.autocomplete-item.active {
-    background-color: #f0f7ff;
-}
-
-.autocomplete-item .main-text {
-    font-weight: 500;
-    color: #1a1a1a;
-}
-
-.autocomplete-item .sub-text {
-    font-size: 12px;
-    color: #6c757d;
-    margin-top: 4px;
-}
-
-/* 高对比度模式适配 */
-body.high-contrast .autocomplete-items {
-    background: #000;
-    border: 2px solid #ff0;
-}
-body.high-contrast .autocomplete-item {
-    color: #ff0;
-    border-bottom-color: #ff0;
-}
-body.high-contrast .autocomplete-item:hover {
-    background: #333;
-}
-.input-invalid {
-    border: 2px solid #ff3b30 !important;
-    background-color: #fff5f5;
-}
-
-.autocomplete-no-result {
-    padding: 12px 14px;
-    color: #999;
-    text-align: center;
-    font-style: italic;
-}
-.input-invalid {
-    border: 2px solid #ff3b30 !important;
-    background-color: #fff5f5;
-}
-
-.autocomplete-no-result {
-    padding: 12px 14px;
-    color: #999;
-    text-align: center;
-    font-style: italic;
-}
-
-.route-marker {
-    cursor: grab !important;
-    pointer-events: auto !important;
-}
-.route-marker:active {
-    cursor: grabbing !important;
-}
-.custom-route-marker {
-    cursor: grab !important;
-    pointer-events: auto !important;
-}
-.custom-route-marker:active {
-    cursor: grabbing !important;
+#reportForm .btn-primary:hover {
+    background: #0062cc;
 }
