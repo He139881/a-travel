@@ -755,14 +755,34 @@ function updateMarkersByZoom() {
 
 function createPopupContent(poi) {
     const status = facilityStatus[poi.name] || { elevator: '未知', ramp: '未知', tactilePaving: '未知', stairs: '未知' };
+    
+    // 判断坡道是否正常
+    const hasGoodRamp = status.ramp === '正常';
+    
+    // 根据坡道状态决定显示什么
+    let imageHtml = '';
+    if (hasGoodRamp) {
+        imageHtml = `<img src="images/poi/${encodeURIComponent(poi.name)}.jpg" 
+                         style="width:100%; max-height:120px; object-fit:cover; border-radius:12px; margin-top:8px;"
+                         onerror="this.style.display='none'">`;
+    } else {
+        imageHtml = '<div style="font-size:12px; color:#888; margin-top:8px;">⚠️ 坡道设施待改善，暂无照片</div>';
+    }
+    
     return `
-        <b>${poi.name}</b><br>
-        ⭐ 可达性评分: ${poi.score}/5<br>
-        🛗 电梯: <span style="color:${status.elevator === '正常' ? 'green' : 'red'}">${status.elevator}</span><br>
-        ♿ 坡道: <span style="color:${status.ramp === '正常' ? 'green' : 'red'}">${status.ramp}</span><br>
-        🟨 盲道: <span style="color:${status.tactilePaving === '有' ? 'green' : 'red'}">${status.tactilePaving === '有' ? '✓ 有' : '✗ 无'}</span><br>
-        📶 台阶: <span style="color:${status.stairs === '无台阶' ? 'green' : 'red'}">${status.stairs === '无台阶' ? '✓ 无障碍' : '⚠️ 有台阶'}</span><br>
-        <button onclick="window.navigateTo(${poi.lat}, ${poi.lng}, '${poi.name}')" style="margin-top:5px;padding:5px 10px;">🧭 导航至此</button>
+        <div style="min-width: 220px; max-width: 280px;">
+            <b>🏢 ${poi.name}</b><br>
+            ⭐ 评分: ${poi.score}/5<br>
+            🛗 电梯: <span style="color:${status.elevator === '正常' ? '#34c759' : '#ff3b30'}">${status.elevator}</span><br>
+            ♿ 坡道: <span style="color:${status.ramp === '正常' ? '#34c759' : '#ff3b30'}">${status.ramp}</span><br>
+            🟨 盲道: ${status.tactilePaving === '有' ? '✓ 有' : '✗ 无'}<br>
+            📶 台阶: ${status.stairs === '无台阶' ? '✓ 无障碍' : '⚠️ 有台阶'}<br>
+            ${imageHtml}
+            <button onclick="window.navigateTo(${poi.lat}, ${poi.lng}, '${poi.name}')" 
+                    style="margin-top:8px; padding:5px 12px; background:#007aff; color:white; border:none; border-radius:20px; cursor:pointer;">
+                🧭 导航至此
+            </button>
+        </div>
     `;
 }
 
@@ -1069,6 +1089,8 @@ async function replanRouteAfterDrag(newStartCoord, newEndCoord, startName, endNa
 }
 
 async function planRealRoute() {
+    console.log('🚀 planRealRoute 被调用, 时间戳:', Date.now());
+    
     const startInput = document.getElementById('startAddress');
     const endInput = document.getElementById('endAddress');
     const startAddr = startInput.value.trim();
@@ -1076,6 +1098,8 @@ async function planRealRoute() {
     const statusEl = document.getElementById('statusText');
 
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
+    console.log('♿ 轮椅模式:', wheelchairMode);
+    console.log('roadSegments 长度:', roadSegments?.length);
 
     if (!startAddr || !endAddr) {
         alert('请输入起点和终点地址');
@@ -1141,7 +1165,7 @@ async function planRealRoute() {
         console.log('♿ 尝试使用自定义无障碍路网...');
         const graph = buildRoadGraph(true);
 
-        const MAX_SNAP_DISTANCE = 0.03;
+        const MAX_SNAP_DISTANCE = 0.001;
 
         let startNodeKey, startNodeCoord;
         const startSnap = findNearestNodeKey(graph, startCoord.lat, startCoord.lng);
@@ -1150,6 +1174,33 @@ async function planRealRoute() {
         if (startSnap.distance < MAX_SNAP_DISTANCE) {
             startNodeKey = startSnap.key;
             startNodeCoord = graph.node(startSnap.key);
+            
+            // 检查起点节点是否为孤立节点
+            const startNeighbors = graph.neighbors(startNodeKey);
+            if (!startNeighbors || startNeighbors.length === 0) {
+                console.log('⚠️ 起点是孤立节点，寻找最近的可连接节点');
+                let bestNode = null;
+                let bestDist = Infinity;
+                graph.nodes().forEach(nodeKey => {
+                    const nodeNeighbors = graph.neighbors(nodeKey);
+                    if (nodeNeighbors && nodeNeighbors.length > 0) {
+                        const nodeCoord = graph.node(nodeKey);
+                        const dist = Math.hypot(nodeCoord.lat - startCoord.lat, nodeCoord.lng - startCoord.lng);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestNode = nodeKey;
+                        }
+                    }
+                });
+                if (bestNode) {
+                    const bestCoord = graph.node(bestNode);
+                    console.log(`✅ 起点吸附到附近节点: ${bestCoord.lat},${bestCoord.lng}, 距离 ${(bestDist * 111000).toFixed(0)} 米`);
+                    startNodeKey = bestNode;
+                    startNodeCoord = bestCoord;
+                    startCoord = bestCoord;
+                    startName = `${startName} (附近)`;
+                }
+            }
         } else {
             startNodeKey = `temp_start_${Date.now()}`;
             startNodeCoord = { lat: startCoord.lat, lng: startCoord.lng };
@@ -1168,6 +1219,33 @@ async function planRealRoute() {
         if (endSnap.distance < MAX_SNAP_DISTANCE) {
             endNodeKey = endSnap.key;
             endNodeCoord = graph.node(endSnap.key);
+            
+            // 检查终点节点是否为孤立节点
+            const endNeighbors = graph.neighbors(endNodeKey);
+            if (!endNeighbors || endNeighbors.length === 0) {
+                console.log('⚠️ 终点是孤立节点，寻找最近的可连接节点');
+                let bestNode = null;
+                let bestDist = Infinity;
+                graph.nodes().forEach(nodeKey => {
+                    const nodeNeighbors = graph.neighbors(nodeKey);
+                    if (nodeNeighbors && nodeNeighbors.length > 0) {
+                        const nodeCoord = graph.node(nodeKey);
+                        const dist = Math.hypot(nodeCoord.lat - endCoord.lat, nodeCoord.lng - endCoord.lng);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestNode = nodeKey;
+                        }
+                    }
+                });
+                if (bestNode) {
+                    const bestCoord = graph.node(bestNode);
+                    console.log(`✅ 终点吸附到附近节点: ${bestCoord.lat},${bestCoord.lng}, 距离 ${(bestDist * 111000).toFixed(0)} 米`);
+                    endNodeKey = bestNode;
+                    endNodeCoord = bestCoord;
+                    endCoord = bestCoord;
+                    endName = `${endName} (附近)`;
+                }
+            }
         } else {
             endNodeKey = `temp_end_${Date.now()}`;
             endNodeCoord = { lat: endCoord.lat, lng: endCoord.lng };
@@ -1289,64 +1367,6 @@ async function planRealRoute() {
             }
         }
     }
-
-    const startIconHtml = `
-        <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
-            <div style="font-size: 32px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🚩</div>
-            <div style="background: #ff3b30; color: white; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: -8px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">起点</div>
-        </div>
-    `;
-    startMarker = L.marker([startCoord.lat, startCoord.lng], {
-        icon: L.divIcon({
-            className: 'custom-route-marker',
-            html: startIconHtml,
-            iconSize: [60, 50],
-            popupAnchor: [0, -25]
-        }),
-        draggable: true
-    }).addTo(map).bindPopup(`起点: ${startName}`);
-
-    const endIconHtml = `
-        <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
-            <div style="font-size: 32px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🏁</div>
-            <div style="background: #ff3b30; color: white; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: -8px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">终点</div>
-        </div>
-    `;
-    endMarker = L.marker([endCoord.lat, endCoord.lng], {
-        icon: L.divIcon({
-            className: 'custom-route-marker',
-            html: endIconHtml,
-            iconSize: [60, 50],
-            popupAnchor: [0, -25]
-        }),
-        draggable: true
-    }).addTo(map).bindPopup(`终点: ${endName}`);
-
-    addHistoryItem({ name: startName, lat: startCoord.lat, lng: startCoord.lng });
-    addHistoryItem({ name: endName, lat: endCoord.lat, lng: endCoord.lng });
-
-    let currentStartName = startName;
-    let currentEndName = endName;
-
-    startMarker.on('dragend', async (e) => {
-        const newLatLng = e.target.getLatLng();
-        // 1. 更新起点输入框
-        const startInput = document.getElementById('startAddress');
-        startInput.value = `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`;
-        startInput.dataset.location = `${newLatLng.lng},${newLatLng.lat}`;
-        startInput.dataset.name = `拖动位置 (${newLatLng.lat.toFixed(4)},${newLatLng.lng.toFixed(4)})`;
-        // 2. 重新运行完整的路线规划（包括轮椅优先判断）
-        planRealRoute();
-    });
-
-    endMarker.on('dragend', async (e) => {
-        const newLatLng = e.target.getLatLng();
-        const endInput = document.getElementById('endAddress');
-        endInput.value = `${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`;
-        endInput.dataset.location = `${newLatLng.lng},${newLatLng.lat}`;
-        endInput.dataset.name = `拖动位置 (${newLatLng.lat.toFixed(4)},${newLatLng.lng.toFixed(4)})`;
-        planRealRoute();
-    });
 }
 
 function useMyLocationAsStart() {
@@ -1821,21 +1841,81 @@ async function showReportModal() {
     document.getElementById('locationHint').innerText = `📍 位置：${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 function showStats() {
-    document.getElementById('chartModal').style.display = 'flex';
+    // 创建或获取模态框容器
+    let modal = document.getElementById('statsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'statsModal';
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <span class="close-btn" id="closeStatsModal">&times;</span>
+                <h3>📊 无障碍数据看板</h3>
+                <div style="margin-bottom: 20px;">
+                    <h4>📈 无障碍设施覆盖率</h4>
+                    <div id="coverageChart" style="height: 250px;"></div>
+                </div>
+                <div>
+                    <h4>📅 近一周障碍物上报趋势</h4>
+                    <div id="trendChart" style="height: 250px;"></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // 关闭按钮事件
+        document.getElementById('closeStatsModal').onclick = () => {
+            modal.style.display = 'none';
+        };
+    }
+    
+    modal.style.display = 'flex';
+    
+    // 计算无障碍友好数量
     const accessibleCount = poiList.filter(p => p.score >= 3.5).length;
     const notAccessible = poiList.length - accessibleCount;
+    
+    // 渲染覆盖率图表
     const coverageChart = echarts.init(document.getElementById('coverageChart'));
-    coverageChart.setOption({ title: { text: '无障碍设施覆盖率' }, series: [{ type: 'pie', radius: '60%', data: [{ name: '无障碍友好', value: accessibleCount }, { name: '待改善', value: notAccessible }] }] });
-    const days = [], counts = [];
+    coverageChart.setOption({
+        tooltip: { trigger: 'item' },
+        series: [{
+            type: 'pie',
+            radius: '60%',
+            data: [
+                { name: '无障碍友好 (≥3.5分)', value: accessibleCount, itemStyle: { color: '#34c759' } },
+                { name: '待改善 (<3.5分)', value: notAccessible, itemStyle: { color: '#ff9500' } }
+            ],
+            label: { show: true, formatter: '{b}: {d}%' }
+        }]
+    });
+    
+    // 计算近一周上报趋势
+    const days = [];
+    const counts = [];
     for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().slice(5, 10);
-        days.push(dateStr);
-        counts.push(obstacles.filter(o => o.report_time && o.report_time.startsWith(d.toISOString().slice(0, 10))).length);
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().slice(0, 10);
+        days.push(dateStr.slice(5)); // 显示 MM-DD
+        counts.push(obstacles.filter(o => o.report_time && o.report_time === dateStr).length);
     }
+    
+    // 渲染趋势图表
     const trendChart = echarts.init(document.getElementById('trendChart'));
-    trendChart.setOption({ title: { text: '近一周上报趋势' }, xAxis: { type: 'category', data: days }, yAxis: { type: 'value' }, series: [{ type: 'bar', data: counts }] });
+    trendChart.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: days, name: '日期' },
+        yAxis: { type: 'value', name: '上报数量' },
+        series: [{
+            type: 'bar',
+            data: counts,
+            itemStyle: { color: '#007aff', borderRadius: [8, 8, 0, 0] }
+        }]
+    });
 }
+
 function locateUser() {
     const statusEl = document.getElementById('statusText');
     if (!navigator.geolocation) { alert("浏览器不支持地理定位"); return; }
