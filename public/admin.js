@@ -491,7 +491,6 @@ async function linkObstacleToRoad(id, action) {
     });
 }
 
-
 // ========== 批量操作 ==========
 async function applyBatchAction() {
     const action = document.getElementById('batchAction').value;

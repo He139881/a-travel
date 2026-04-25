@@ -157,7 +157,7 @@ function drawRoadSegments() {
         let weight = 4;
 
         const passable = seg.wheelchair_passable;
-        
+
         // 判断不可通行（支持 '否'、'no'）
         if (passable === '否' || passable === 'no') {
             color = '#ff3b30';  // 红色：不可通行
@@ -189,7 +189,7 @@ function drawRoadSegments() {
             className: 'custom-road'
         }).addTo(map);
 
-        polyline.on('click', function(e) {
+        polyline.on('click', function (e) {
             if (!isLoggedIn()) {
                 showConfirm('上报障碍物需要登录，是否前往登录？', () => {
                     window.location.href = 'login.html';
@@ -207,7 +207,7 @@ function drawRoadSegments() {
             // 存储路段ID，提交时使用
             document.getElementById('reportModal').dataset.roadSegmentId = seg.id;
         });
-        
+
         let popupText = `<b>${seg.segment_type || '道路'}</b><br>`;
         popupText += `无障碍通行: ${seg.wheelchair_passable}<br>`;
         if (seg.notes) popupText += `备注: ${seg.notes}`;
@@ -711,18 +711,18 @@ function updateUserStatus() {
 }
 
 function handleLoginLogout() {
-const token = sessionStorage.getItem('token');
-if (token) {
-    if (confirm('确定要退出登录吗？')) {
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
-        updateUserStatus();
-        speak('您已退出登录');
-        location.reload();
+    const token = sessionStorage.getItem('token');
+    if (token) {
+        if (confirm('确定要退出登录吗？')) {
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('user');
+            updateUserStatus();
+            speak('您已退出登录');
+            location.reload();
+        }
+    } else {
+        window.location.href = 'login.html';
     }
-} else {
-    window.location.href = 'login.html';
-}
 }
 
 function vibrate(pattern) {
@@ -2056,27 +2056,27 @@ window.onload = async () => {
             if (file) { const reader = new FileReader(); reader.onload = (ev) => { document.getElementById('photoPreview').src = ev.target.result; document.getElementById('photoPreview').style.display = 'block'; }; reader.readAsDataURL(file); }
         });
     }
-document.getElementById('reportForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const type = document.getElementById('obstacleType').value;
-    const desc = document.getElementById('obstacleDesc').value;
-    const photoData = document.getElementById('photoPreview').src;
-    const lat = parseFloat(document.getElementById('obstacleLat').value);
-    const lng = parseFloat(document.getElementById('obstacleLng').value);
-    const roadSegmentId = document.getElementById('reportModal').dataset.roadSegmentId || null;
+    document.getElementById('reportForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const type = document.getElementById('obstacleType').value;
+        const desc = document.getElementById('obstacleDesc').value;
+        const photoData = document.getElementById('photoPreview').src;
+        const lat = parseFloat(document.getElementById('obstacleLat').value);
+        const lng = parseFloat(document.getElementById('obstacleLng').value);
+        const roadSegmentId = document.getElementById('reportModal').dataset.roadSegmentId || null;
 
-    const newObstacle = {
-        id: Date.now(),
-        lat,
-        lng,
-        type,
-        description: desc,
-        status: "未处理",
-        report_time: new Date().toISOString().slice(0, 10),
-        photo: photoData || null,
-        road_segment_id: roadSegmentId ? parseInt(roadSegmentId) : null   // 关键新增
-    };
-    const success = await addObstacleToServer(newObstacle);
+        const newObstacle = {
+            id: Date.now(),
+            lat,
+            lng,
+            type,
+            description: desc,
+            status: "未处理",
+            report_time: new Date().toISOString().slice(0, 10),
+            photo: photoData || null,
+            road_segment_id: roadSegmentId ? parseInt(roadSegmentId) : null   // 关键新增
+        };
+        const success = await addObstacleToServer(newObstacle);
         if (success) {
             obstacles.push(newObstacle);
             updateObstacleMarkers();
@@ -2120,50 +2120,56 @@ document.getElementById('reportForm').addEventListener('submit', async (e) => {
             maxZoom: 19
         }).addTo(map);
     }
-  // ========== 自动设置起点 ==========
-const startInput = document.getElementById('startAddress');
-const endInput = document.getElementById('endAddress');
-if (!startInput.value.trim()) {
-    try {
-        await useMyLocationAsStart();
-    } catch (e) { /* 定位失败则留空，稍后可手动输入 */ }
-}
-// 不再自动设置终点
-
-// ========== 预置可拖动的起点/终点旗子（地图中心） ==========
-const center = map.getCenter();
-if (startMarker) map.removeLayer(startMarker);
-if (endMarker) map.removeLayer(endMarker);
-
-startMarker = createDraggableMarker([center.lat, center.lng], 'start', '起点');
-endMarker = createDraggableMarker([center.lat, center.lng], 'end', '终点');
-
-// 拖动起点后更新输入框并尝试规划
-startMarker.on('dragend', async function (e) {
-    const newPos = e.target.getLatLng();
-    const newCoord = { lat: newPos.lat, lng: newPos.lng };
-    const addr = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
-    startInput.value = addr;
-    startInput.dataset.location = `${newPos.lng},${newPos.lat}`;
-    startInput.dataset.name = addr;
-    if (startInput.dataset.location && endInput.dataset.location) {
-        await planRealRoute();
+    // ========== 自动设置起点 ==========
+    const startInput = document.getElementById('startAddress');
+    const endInput = document.getElementById('endAddress');
+    if (!startInput.value.trim()) {
+        try {
+            await useMyLocationAsStart();
+        } catch (e) { /* 定位失败则留空，稍后可手动输入 */ }
     }
-});
+    // 不再自动设置终点
 
-// 拖动终点后更新输入框并尝试规划
-endMarker.on('dragend', async function (e) {
-    const newPos = e.target.getLatLng();
-    const newCoord = { lat: newPos.lat, lng: newPos.lng };
-    const addr = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
-    endInput.value = addr;
-    endInput.dataset.location = `${newPos.lng},${newPos.lat}`;
-    endInput.dataset.name = addr;
-    if (startInput.dataset.location && endInput.dataset.location) {
-        await planRealRoute();
-    }
-});
+    // ========== 预置可拖动的起点/终点旗子（地图中心） ==========
+    const center = map.getCenter();
+    if (startMarker) map.removeLayer(startMarker);
+    if (endMarker) map.removeLayer(endMarker);
 
+    startMarker = createDraggableMarker([center.lat, center.lng], 'start', '起点');
+    endMarker = createDraggableMarker([center.lat, center.lng], 'end', '终点');
+
+    // 拖动起点后更新输入框并尝试规划
+    startMarker.on('dragend', async function (e) {
+        const newPos = e.target.getLatLng();
+        const newCoord = { lat: newPos.lat, lng: newPos.lng };
+        const addr = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
+        startInput.value = addr;
+        startInput.dataset.location = `${newPos.lng},${newPos.lat}`;
+        startInput.dataset.name = addr;
+        if (startInput.dataset.location && endInput.dataset.location) {
+            await planRealRoute();
+        }
+    });
+
+    // 拖动终点后更新输入框并尝试规划
+    endMarker.on('dragend', async function (e) {
+        const newPos = e.target.getLatLng();
+        const newCoord = { lat: newPos.lat, lng: newPos.lng };
+        const addr = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
+        endInput.value = addr;
+        endInput.dataset.location = `${newPos.lng},${newPos.lat}`;
+        endInput.dataset.name = addr;
+        if (startInput.dataset.location && endInput.dataset.location) {
+            await planRealRoute();
+        }
+    });
+    document.getElementById('adminLink').addEventListener('click', function (e) {
+        const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+        if (user.role !== 'admin') {
+            e.preventDefault();
+            showNiceAlert('此功能仅管理员可用，请先登录管理员账号', '⚠️');
+        }
+    });
 };
 
 function toggleHighContrast() {
