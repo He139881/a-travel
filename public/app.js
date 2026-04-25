@@ -1,3 +1,4 @@
+let currentTileLayer = null;
 // 高德地图 API 配置
 const AMAP_KEY = '2c5385f0963e09c03c60546742d12f0c';
 const API_BASE = 'http://localhost:3000/api';
@@ -475,10 +476,12 @@ async function loadPoiFromServer() {
 // ========== 地图初始化 ==========
 function initMap() {
     map = L.map('map').setView([26.879, 112.516], 15);
-    L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+    // 只保留这一个瓦片引用
+    currentTileLayer = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
         subdomains: ['1', '2', '3', '4'],
         attribution: '&copy; <a href="https://www.amap.com">高德地图</a>'
     }).addTo(map);
+
     map.on('zoomend', () => {
         updateMarkersByZoom();
         updateObstaclesByZoom();
@@ -862,23 +865,12 @@ async function replanRouteAfterDrag(newStartCoord, newEndCoord, startName, endNa
         }
     }
 
-    // ========== 统一创建可拖动的起点/终点标记 ==========
     if (startMarker) map.removeLayer(startMarker);
     if (endMarker) map.removeLayer(endMarker);
 
-    startMarker = L.marker([newStartCoord.lat, newStartCoord.lng], {
-        draggable: true,
-        icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [40, 40] }),
-        zIndexOffset: 1000
-    }).addTo(map).bindPopup(`起点: ${startName}`);
+    startMarker = createDraggableMarker([newStartCoord.lat, newStartCoord.lng], 'start', '起点');
+    endMarker = createDraggableMarker([newEndCoord.lat, newEndCoord.lng], 'end', '终点');
 
-    endMarker = L.marker([newEndCoord.lat, newEndCoord.lng], {
-        draggable: true,
-        icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [40, 40] }),
-        zIndexOffset: 1000
-    }).addTo(map).bindPopup(`终点: ${endName}`);
-
-    // 拖动起点重新规划
     startMarker.on('dragend', async function (e) {
         const newPos = e.target.getLatLng();
         const newStartCoord = { lat: newPos.lat, lng: newPos.lng };
@@ -886,7 +878,6 @@ async function replanRouteAfterDrag(newStartCoord, newEndCoord, startName, endNa
         await replanRouteAfterDrag(newStartCoord, { lat: endMarker.getLatLng().lat, lng: endMarker.getLatLng().lng }, newStartName, endName);
     });
 
-    // 拖动终点重新规划
     endMarker.on('dragend', async function (e) {
         const newPos = e.target.getLatLng();
         const newEndCoord = { lat: newPos.lat, lng: newPos.lng };
@@ -948,36 +939,24 @@ async function planRealRoute() {
     }
 
     // ========== 创建可拖动的起点/终点标记 ==========
-    // 注意：这里使用原始的 startCoord/endCoord，因为 tryCustomRoute 未回传吸附后坐标
     if (startMarker) map.removeLayer(startMarker);
     if (endMarker) map.removeLayer(endMarker);
 
-    startMarker = L.marker([startCoord.lat, startCoord.lng], {
-        draggable: true,
-        icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [40, 40] }),
-        zIndexOffset: 1000
-    }).addTo(map).bindPopup(`起点: ${startName}`);
-
-    endMarker = L.marker([endCoord.lat, endCoord.lng], {
-        draggable: true,
-        icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [40, 40] }),
-        zIndexOffset: 1000
-    }).addTo(map).bindPopup(`终点: ${endName}`);
+    startMarker = createDraggableMarker([startCoord.lat, startCoord.lng], 'start', '起点');
+    endMarker = createDraggableMarker([endCoord.lat, endCoord.lng], 'end', '终点');
 
     startMarker.on('dragend', async function (e) {
         const newPos = e.target.getLatLng();
         const newStartCoord = { lat: newPos.lat, lng: newPos.lng };
         const newStartName = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
-        e.target.setPopupContent(`起点: ${newStartName}`);
-        await replanRouteAfterDrag(newStartCoord, endCoord, newStartName, endName);
+        await replanRouteAfterDrag(newStartCoord, { lat: endMarker.getLatLng().lat, lng: endMarker.getLatLng().lng }, newStartName, endName);
     });
 
     endMarker.on('dragend', async function (e) {
         const newPos = e.target.getLatLng();
         const newEndCoord = { lat: newPos.lat, lng: newPos.lng };
         const newEndName = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
-        e.target.setPopupContent(`终点: ${newEndName}`);
-        await replanRouteAfterDrag(startCoord, newEndCoord, startName, newEndName);
+        await replanRouteAfterDrag({ lat: startMarker.getLatLng().lat, lng: startMarker.getLatLng().lng }, newEndCoord, startName, newEndName);
     });
 }
 
@@ -1516,13 +1495,8 @@ async function executeNavigate(destination) {
 
                     if (typeof vibrate === 'function') vibrate(3);
 
-                    startMarker = L.marker([finalStartCoord.lat, finalStartCoord.lng], {
-                        icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] })
-                    }).addTo(map).bindPopup(`起点: ${finalStartName}`);
-
-                    endMarker = L.marker([finalEndCoord.lat, finalEndCoord.lng], {
-                        icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [28, 28] })
-                    }).addTo(map).bindPopup(`终点: ${finalEndName}`);
+                    startMarker = createDraggableMarker([startCoord.lat, startCoord.lng], 'start', '起点');
+                    endMarker = createDraggableMarker([endCoord.lat, endCoord.lng], 'end', '终点');
 
                     usedCustomRoute = true;
                 }
@@ -1540,13 +1514,9 @@ async function executeNavigate(destination) {
 
         context.lastRouteInfo = { distance: route.distance, duration: route.duration };
 
-        startMarker = L.marker([startCoord.lat, startCoord.lng], {
-            icon: L.divIcon({ className: 'route-marker', html: '🚩', iconSize: [28, 28] })
-        }).addTo(map).bindPopup(`起点: ${startName}`);
-
-        endMarker = L.marker([endCoord.lat, endCoord.lng], {
-            icon: L.divIcon({ className: 'route-marker', html: '🏁', iconSize: [28, 28] })
-        }).addTo(map).bindPopup(`终点: ${endName}`);
+// 在 !usedCustomRoute 分支中
+startMarker = createDraggableMarker([startCoord.lat, startCoord.lng], 'start', '起点');
+endMarker = createDraggableMarker([endCoord.lat, endCoord.lng], 'end', '终点');
 
         currentRouteLayer = L.geoJSON(route.geometry, {
             style: { color: '#007aff', weight: 6, opacity: 0.8 }
@@ -1921,6 +1891,21 @@ function showStats() {
         series: [{ type: 'bar', data: counts, itemStyle: { color: '#007aff', borderRadius: [8, 8, 0, 0] } }]
     });
 }
+// 移到 locateUser 之前
+function createDraggableMarker(latlng, type, label) {
+    const emoji = type === 'start' ? '🚩' : '🏁';
+    const html = `<div style="text-align:center; position:relative;">
+        <span style="font-size:28px; line-height:1;">${emoji}</span>
+        <span class="route-marker-label">${label}</span>
+    </div>`;
+    const marker = L.marker(latlng, {
+        draggable: true,
+        icon: L.divIcon({ className: 'route-marker', html, iconSize: [40, 50], iconAnchor: [20, 50] }),
+        zIndexOffset: 1000
+    }).addTo(map);
+    marker.bindPopup(`${label}位置`);
+    return marker;
+}
 
 function locateUser() {
     const statusEl = document.getElementById('statusText');
@@ -2052,7 +2037,43 @@ window.onload = async () => {
     // 应用高对比偏好
     if (loadContrastPref()) {
         document.body.classList.add('high-contrast');
+        // 切换到暗色底图
+        map.removeLayer(currentTileLayer);
+        currentTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
     }
+        // 页面加载后自动设置起点和终点并规划路线
+    const startInput = document.getElementById('startAddress');
+    const endInput = document.getElementById('endAddress');
+    if (!startInput.value.trim()) {
+        try {
+            await useMyLocationAsStart();
+        } catch (e) { /* 定位失败使用默认 */ }
+        if (!startInput.value.trim()) {
+            startInput.value = '西门'; // 默认起点
+            const poi = poiList.find(p => p.name === '西门');
+            if (poi) {
+                startInput.dataset.location = `${poi.lng},${poi.lat}`;
+                startInput.dataset.name = poi.name;
+            }
+        }
+    }
+    if (!endInput.value.trim()) {
+        endInput.value = '图书馆';
+        const poi = poiList.find(p => p.name === '图书馆');
+        if (poi) {
+            endInput.dataset.location = `${poi.lng},${poi.lat}`;
+            endInput.dataset.name = poi.name;
+        }
+    }
+    // 如果起点终点都已获得坐标，自动规划路线
+    if (startInput.dataset.location && endInput.dataset.location) {
+        await planRealRoute();
+    }
+
 };
 
 function toggleHighContrast() {
@@ -2060,5 +2081,31 @@ function toggleHighContrast() {
     body.classList.toggle('high-contrast');
     const enabled = body.classList.contains('high-contrast');
     saveContrastPref(enabled);
-    speak(enabled ? '已开启高对比度模式' : '已关闭高对比度模式');
+
+    // 防止语音冲突：先停止所有正在进行的播报
+    speechManager.stop();
+    if (enabled) {
+        speak('已开启高对比度模式');
+    } else {
+        speak('已关闭高对比度模式');
+    }
+
+    if (map && currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+        if (enabled) {
+            currentTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CartoDB',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+        } else {
+            currentTileLayer = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+                subdomains: ['1', '2', '3', '4'],
+                attribution: '&copy; <a href="https://www.amap.com">高德地图</a>'
+            }).addTo(map);
+        }
+    }
 }
+
+
+

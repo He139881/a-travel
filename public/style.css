@@ -566,37 +566,179 @@ form .btn-primary {
     justify-content: center;
 }
 
-/* 高对比度模式 */
+/* ========== 高对比模式全元素覆盖 ========== */
 body.high-contrast {
     background: #000 !important;
-    color: #fff !important;
+    color: #ff0 !important;
 }
-body.high-contrast .glass-card {
-    background: rgba(255, 255, 255, 0.15) !important;
-    box-shadow: 0 0 0 2px #fff !important;
+
+/* 全局卡片、面板 */
+body.high-contrast .glass-card,
+body.high-contrast .facility-panel,
+body.high-contrast .modal-content,
+body.high-contrast .custom-alert-box,
+body.high-contrast .stats-modal-content,
+body.high-contrast .stats-modal-header,
+body.high-contrast .stats-modal-body,
+body.high-contrast .login-container,
+body.high-contrast #prefDropdown {
+    background: #000 !important;
+    color: #ff0 !important;
+    border: 2px solid #ff0 !important;
 }
-body.high-contrast .btn-primary,
-body.high-contrast .action-btn {
-    background: #fff !important;
-    color: #000 !important;
-    border: 2px solid #000 !important;
-}
-body.high-contrast .facility-panel {
-    background: rgba(0, 0, 0, 0.9) !important;
-    color: #fff !important;
-}
+
+/* 状态栏 */
 body.high-contrast #status {
-    background: rgba(0, 0, 0, 0.85) !important;
-    color: #fff !important;
+    background: #000 !important;
+    color: #ff0 !important;
+    border-bottom: 2px solid #ff0;
 }
+body.high-contrast #statusText {
+    color: #ff0 !important;
+}
+
+/* 所有按钮 */
+body.high-contrast button,
+body.high-contrast .btn-primary,
+body.high-contrast .btn-danger,
+body.high-contrast .action-btn,
+body.high-contrast .tool-btn,
+body.high-contrast .text-btn,
+body.high-contrast .edit-btn,
+body.high-contrast .tab,
+body.high-contrast .voice-cmd {
+    background: #000 !important;
+    color: #ff0 !important;
+    border: 2px solid #ff0 !important;
+    font-weight: bold !important;
+}
+body.high-contrast button:hover,
+body.high-contrast .btn-primary:hover,
+body.high-contrast .action-btn:hover {
+    background: #ff0 !important;
+    color: #000 !important;
+}
+
+/* 输入框、选择框、文本域 */
+body.high-contrast input,
+body.high-contrast select,
+body.high-contrast textarea {
+    background: #000 !important;
+    color: #ff0 !important;
+    border: 2px solid #ff0 !important;
+    outline: none;
+}
+body.high-contrast input::placeholder,
+body.high-contrast textarea::placeholder {
+    color: #aaa !important;
+}
+
+/* 自动完成下拉 */
 body.high-contrast .autocomplete-items {
     background: #000 !important;
-    border: 1px solid #fff !important;
+    border: 2px solid #ff0 !important;
 }
 body.high-contrast .autocomplete-item {
-    color: #fff !important;
+    color: #ff0 !important;
     border-bottom: 1px solid #555 !important;
 }
 body.high-contrast .autocomplete-item:hover {
     background: #333 !important;
+}
+
+/* 设施面板 */
+body.high-contrast .panel-header {
+    color: #ff0 !important;
+    border-bottom-color: #ff0 !important;
+}
+body.high-contrast .facility-item {
+    border-bottom-color: #555 !important;
+}
+body.high-contrast .facility-item:hover {
+    background: #222 !important;
+}
+
+/* 数据看板卡片 */
+body.high-contrast .stats-mini-card {
+    background: #111 !important;
+    border: 2px solid #ff0 !important;
+}
+body.high-contrast .chart-box {
+    background: #000 !important;
+    border: 2px solid #ff0 !important;
+}
+
+/* Leaflet 地图控件 */
+body.high-contrast .leaflet-control-zoom a,
+body.high-contrast .leaflet-control-attribution {
+    background: #000 !important;
+    color: #ff0 !important;
+    border-color: #ff0 !important;
+}
+body.high-contrast .leaflet-control-zoom a:hover {
+    background: #ff0 !important;
+    color: #000 !important;
+}
+
+/* 弹出窗口 */
+body.high-contrast .leaflet-popup-content-wrapper,
+body.high-contrast .leaflet-popup-tip {
+    background: #000 !important;
+    color: #ff0 !important;
+    border: 1px solid #ff0;
+}
+
+/* 地图容器背景 */
+body.high-contrast .leaflet-container {
+    background: #000 !important;
+}
+
+/* 语音提示面板 */
+body.high-contrast .voice-hint {
+    background: #000 !important;
+    border: 2px solid #ff0 !important;
+}
+
+/* 自定义弹窗 */
+body.high-contrast .custom-alert-overlay {
+    background: rgba(0,0,0,0.85) !important;
+}
+
+/* 图片模态框 */
+body.high-contrast .image-modal {
+    background-color: rgba(0,0,0,0.95) !important;
+}
+body.high-contrast .image-modal-close {
+    color: #ff0 !important;
+}
+
+/* 修复设施面板滚动条（可选） */
+body.high-contrast #facilityList::-webkit-scrollbar {
+    width: 8px;
+    background: #000;
+}
+body.high-contrast #facilityList::-webkit-scrollbar-thumb {
+    background: #ff0;
+    border-radius: 4px;
+}
+.route-marker-label {
+    font-size: 12px;
+    font-weight: bold;
+    background: transparent;          /* 透明背景 */
+    color: #fff;
+    text-shadow: 0 0 4px #000, 0 0 2px #000;  /* 文字阴影增强可读性 */
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    position: absolute;
+    transform: translate(-50%, -120%);
+    left: 50%;
+    top: 0;
+}
+/* 高对比模式适配 */
+body.high-contrast .route-marker-label {
+    background: transparent !important;
+    color: #ff0 !important;
+    border: none;
+    text-shadow: 0 0 4px #000, 0 0 2px #000;
 }
