@@ -63,13 +63,13 @@ let heatmapInitialized = false; // 防止重复初始化
 
 // ========== 认证相关 ==========
 function getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');   // 正确写法
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
 function checkAdminAuth() {
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = sessionStorage.getItem('token');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     if (!token || user.role !== 'admin') {
         window.location.href = 'login.html';
         return false;
@@ -79,8 +79,8 @@ function checkAdminAuth() {
 }
 
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     window.location.href = 'login.html';
 }
 
@@ -333,8 +333,6 @@ ${obs.status !== '已完成' ? `<button class="action-btn" onclick="linkObstacle
     ${obs.status === '处理中' && obs.claimed_by ? `<button class="action-btn" onclick="openResolveModal(${obs.id})">✅ 上传完成</button>` : ''}
     <button class="action-btn" onclick="changeStatus(${obs.id}, '${obs.status === '未处理' ? '处理中' : (obs.status === '处理中' ? '已完成' : '未处理')}')">✏️ 状态</button>
 </td>
-                ${obs.status === '处理中' && obs.claimed_by ? `<button class="action-btn" onclick="openResolveModal(${obs.id})">✅ 上传完成</button>` : ''}
-                <button class="action-btn" onclick="changeStatus(${obs.id}, '${obs.status === '未处理' ? '处理中' : (obs.status === '处理中' ? '已完成' : '未处理')}')">✏️ 状态</button>
             </td>
         </tr>`;
     });
@@ -372,14 +370,14 @@ function renderCharts() {
     const typeCounts = {};
     obstacles.forEach(o => { typeCounts[o.type] = (typeCounts[o.type] || 0) + 1; });
     const typeChart = echarts.init(document.getElementById('typeChart'));
-    typeChart.setOption({ title: { text: '障碍物类型分布' }, tooltip: {}, series: [{ type: 'pie', data: Object.entries(typeCounts).map(([n,v]) => ({ name: n, value: v })) }] });
+    typeChart.setOption({ title: { text: '障碍物类型分布' }, tooltip: {}, series: [{ type: 'pie', data: Object.entries(typeCounts).map(([n, v]) => ({ name: n, value: v })) }] });
     const days = [], counts = [];
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().slice(5,10);
+        const dateStr = d.toISOString().slice(5, 10);
         days.push(dateStr);
-        counts.push(obstacles.filter(o => o.report_time === d.toISOString().slice(0,10)).length);
+        counts.push(obstacles.filter(o => o.report_time === d.toISOString().slice(0, 10)).length);
     }
     const trendChart = echarts.init(document.getElementById('trendChartAdmin'));
     trendChart.setOption({ title: { text: '近一周上报趋势' }, xAxis: { type: 'category', data: days }, yAxis: { type: 'value' }, series: [{ type: 'bar', data: counts }] });
@@ -409,7 +407,7 @@ async function confirmClaim() {
     if (obs) {
         obs.status = '处理中';
         obs.claimed_by = name;
-        obs.claim_time = new Date().toISOString().slice(0,10);
+        obs.claim_time = new Date().toISOString().slice(0, 10);
         await updateObstacleOnServer(id, { status: '处理中', claimed_by: name, claim_time: obs.claim_time });
         renderTable(document.getElementById('searchInput').value, document.getElementById('statusFilter').value);
         renderCharts();
@@ -424,7 +422,7 @@ async function confirmResolve() {
     const process = async (photoData) => {
         obs.status = '已完成';
         obs.resolved_photo = photoData || null;
-        obs.resolved_time = new Date().toISOString().slice(0,10);
+        obs.resolved_time = new Date().toISOString().slice(0, 10);
         await updateObstacleOnServer(id, { status: '已完成', resolved_photo: photoData || null, resolved_time: obs.resolved_time });
         renderTable(document.getElementById('searchInput').value, document.getElementById('statusFilter').value);
         renderCharts();
@@ -529,8 +527,8 @@ async function exportPDF() {
     pdf.addPage();
     pdf.addImage(canvas3.toDataURL(), 'PNG', 10, 20, 190, 80);
     pdf.setFontSize(12);
-    pdf.text(`总上报: ${obstacles.length}  待处理: ${obstacles.filter(o=>o.status==='未处理').length}  已完成: ${obstacles.filter(o=>o.status==='已完成').length}`, 10, 110);
-    pdf.save(`无障碍周报_${new Date().toISOString().slice(0,10)}.pdf`);
+    pdf.text(`总上报: ${obstacles.length}  待处理: ${obstacles.filter(o => o.status === '未处理').length}  已完成: ${obstacles.filter(o => o.status === '已完成').length}`, 10, 110);
+    pdf.save(`无障碍周报_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 // ========== Tab 切换（修复热力图） ==========
@@ -580,11 +578,11 @@ function renderSosTable(records) {
             <td>${rec.id}</td>
             <td>${rec.username || '匿名'}</td>
             <td>${rec.lat.toFixed(4)}, ${rec.lng.toFixed(4)}</td>
-            <td>${rec.address ? (rec.address.length>20? rec.address.substr(0,20)+'…':rec.address) : '-'}</td>
-            <td>${rec.message ? (rec.message.length>10? rec.message.substr(0,10)+'…':rec.message) : '-'}</td>
-            <td><select class="sos-status" data-id="${rec.id}"><option value="待处理" ${rec.status==='待处理'?'selected':''}>待处理</option><option value="已处理" ${rec.status==='已处理'?'selected':''}>已处理</option></select></td>
+            <td>${rec.address ? (rec.address.length > 20 ? rec.address.substr(0, 20) + '…' : rec.address) : '-'}</td>
+            <td>${rec.message ? (rec.message.length > 10 ? rec.message.substr(0, 10) + '…' : rec.message) : '-'}</td>
+            <td><select class="sos-status" data-id="${rec.id}"><option value="待处理" ${rec.status === '待处理' ? 'selected' : ''}>待处理</option><option value="已处理" ${rec.status === '已处理' ? 'selected' : ''}>已处理</option></select></td>
             <td>${new Date(rec.created_at).toLocaleString()}</td>
-            <td><button class="update-sos-status" data-id="${rec.id}">💾 更新</button> <button class="view-sos-detail" data-id="${rec.id}" data-address="${rec.address||''}" data-message="${rec.message||''}" data-username="${rec.username||'匿名'}" data-time="${rec.created_at}">🔍 详情</button></td>
+            <td><button class="update-sos-status" data-id="${rec.id}">💾 更新</button> <button class="view-sos-detail" data-id="${rec.id}" data-address="${rec.address || ''}" data-message="${rec.message || ''}" data-username="${rec.username || '匿名'}" data-time="${rec.created_at}">🔍 详情</button></td>
         </tr>`;
     });
     html += `</tbody></table>`;
@@ -602,13 +600,13 @@ function renderSosTable(records) {
                     body: JSON.stringify({ status: newStatus })
                 });
                 if (res.ok) { showNiceAlert('状态更新成功', '✅'); loadSosRecords(); }
-                else { const err = await res.json(); showNiceAlert('更新失败：'+err.error, '❌'); }
+                else { const err = await res.json(); showNiceAlert('更新失败：' + err.error, '❌'); }
             } catch (err) { showNiceAlert('网络错误', '❌'); }
         });
     });
     document.querySelectorAll('.view-sos-detail').forEach(btn => {
         btn.addEventListener('click', () => {
-            showNiceAlert(`用户：${btn.dataset.username}\n时间：${new Date(btn.dataset.time).toLocaleString()}\n地址：${btn.dataset.address||'无'}\n留言：${btn.dataset.message||'无'}`, '📋');
+            showNiceAlert(`用户：${btn.dataset.username}\n时间：${new Date(btn.dataset.time).toLocaleString()}\n地址：${btn.dataset.address || '无'}\n留言：${btn.dataset.message || '无'}`, '📋');
         });
     });
 }

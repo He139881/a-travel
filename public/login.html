@@ -197,8 +197,8 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    sessionStorage.setItem('token', data.token);
+                    sessionStorage.setItem('user', JSON.stringify(data.user));
                     window.location.href = 'index.html';
                 } else {
                     document.getElementById('loginError').innerText = data.error;
@@ -222,8 +222,9 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    // 管理员登录成功部分（约第 125 行）
+                    sessionStorage.setItem('token', data.token);
+                    sessionStorage.setItem('user', JSON.stringify(data.user));
                     window.location.href = 'admin.html';
                 } else {
                     document.getElementById('loginError').innerText = data.error;
@@ -273,8 +274,8 @@
 
         // 检查是否已登录，若已登录则跳转
         (function checkLogin() {
-            const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const token = sessionStorage.getItem('token');
+            const user = JSON.parse(sessionStorage.getItem('user') || '{}');
             if (token) {
                 if (user.role === 'admin') {
                     window.location.href = 'admin.html';
