@@ -110,16 +110,23 @@ function drawRoadSegments() {
     roadSegments.forEach(seg => {
         let color = '#888888';
         let weight = 4;
-        if (seg.wheelchair_passable === '是') {
-            color = '#34c759';
-        } else if (seg.wheelchair_passable === '否' || seg.wheelchair_passable === '否（有台阶）') {
-            color = '#ff3b30';
-        } else if (seg.segment_type === '坡道' || seg.wheelchair_passable === '坡道陡，仅电动轮椅可通行') {
-            color = '#ff9500';
+        
+        // 优先按 segment_type 判断颜色（坡道优先显示黄色）
+        if (seg.segment_type === '坡道') {
+            color = '#ffcc00';  // 黄色
         } else if (seg.segment_type === '坡道台阶混合') {
-            color = '#ff9500';
+            color = '#ff9500';  // 橙色
             weight = 5;
+        } else if (seg.segment_type === '台阶') {
+            color = '#ff3b30';  // 红色
+        } else if (seg.wheelchair_passable === '是') {
+            color = '#34c759';  // 绿色
+        } else if (seg.wheelchair_passable === '否' || seg.wheelchair_passable === '否（有台阶）') {
+            color = '#ff3b30';  // 红色
+        } else if (seg.wheelchair_passable === '坡道陡，仅电动轮椅可通行') {
+            color = '#ff9500';  // 橙色
         }
+        
         const latlngs = [
             [seg.start_lat, seg.start_lng],
             [seg.end_lat, seg.end_lng]
@@ -130,6 +137,7 @@ function drawRoadSegments() {
             opacity: 0.8,
             className: 'custom-road'
         }).addTo(map);
+        
         let popupText = `<b>${seg.segment_type || '道路'}</b><br>`;
         popupText += `轮椅通行: ${seg.wheelchair_passable}<br>`;
         if (seg.notes) popupText += `备注: ${seg.notes}`;
@@ -377,14 +385,27 @@ function buildRoadGraph(wheelchairMode = true) {
             { lat: seg.end_lat, lng: seg.end_lng }
         ) * 1000;
 
-        // 轮椅模式过滤
+        // 轮椅模式过滤和权重调整
         if (wheelchairMode) {
             const passable = seg.wheelchair_passable;
-            if (passable === '否' || passable === '否（有台阶）' || seg.segment_type === '台阶') {
-                return; // 直接跳过，不添加边
+            const segType = seg.segment_type;
+            
+            // 1. 台阶：直接跳过（不可通行）
+            if (segType === '台阶') {
+                return;
+            }
+            
+            // 2. 坡道：增加权重（尽量不选，但实在没路时会选）
+            if (segType === '坡道') {
+                weight *= 10;
+            }
+            
+            // 3. 其他过滤条件
+            if (passable === '否' || passable === '否（有台阶）') {
+                return;
             } else if (passable === '坡道陡，仅电动轮椅可通行') {
                 weight *= 5;
-            } else if (seg.segment_type === '坡道台阶混合') {
+            } else if (segType === '坡道台阶混合') {
                 weight *= 3;
             }
         }
@@ -660,6 +681,87 @@ function locateAndSetView() {
     );
 }
 
+
+function updateMarkersByZoom() {
+    const currentZoom = map.getZoom();
+    detailMarkers.forEach(m => map.removeLayer(m));
+    regionMarkers.forEach(m => map.removeLayer(m));
+    if (campusMarker) map.removeLayer(campusMarker);
+    if (currentZoom >= 16) {
+        detailMarkers.forEach(m => m.addTo(map));
+    } else if (currentZoom >= 14) {
+        regionMarkers.forEach(m => m.addTo(map));
+    } else {
+        if (campusMarker) campusMarker.addTo(map);
+    }
+}
+function loadPoiImageForMarker(marker, poi) {
+    marker.on('popupopen', function() {
+        setTimeout(() => {
+            const container = document.getElementById(`img-container-${poi.id}`);
+            if (container && container.innerHTML.includes('加载中')) {
+                const imgSrc = `images/poi/${encodeURIComponent(poi.name)}.jpg`;
+                
+                // 使用 fetch 先检查图片是否存在
+                fetch(imgSrc, { method: 'HEAD' })
+                    .then(response => {
+                        if (response.ok) {
+                            const imgElement = document.createElement('img');
+                            imgElement.src = imgSrc;
+                            imgElement.style.width = '100%';
+                            imgElement.style.maxHeight = '120px';
+                            imgElement.style.objectFit = 'cover';
+                            imgElement.style.borderRadius = '12px';
+                            imgElement.style.cursor = 'pointer';
+                            imgElement.onclick = function() {
+                                if (window.openImageModal) {
+                                    window.openImageModal(imgSrc);
+                                }
+                            };
+                            container.innerHTML = '';
+                            container.appendChild(imgElement);
+                        } else {
+                            container.innerHTML = '<div style="font-size:12px; color:#888;">📷 暂无设施照片</div>';
+                        }
+                    })
+                    .catch(() => {
+                        container.innerHTML = '<div style="font-size:12px; color:#888;">📷 暂无设施照片</div>';
+                    });
+            }
+        }, 50);
+    });
+}
+
+function createPopupContent(poi) {
+    const status = facilityStatus[poi.name] || { elevator: '未知', ramp: '未知', tactilePaving: '未知', stairs: '未知' };
+    
+    const hasGoodRamp = status.ramp === '正常';
+    const imgContainerId = `img-container-${poi.id}`;
+    
+    let imageHtml = '';
+    if (hasGoodRamp) {
+        imageHtml = `<div id="${imgContainerId}" style="min-height: 40px; margin-top:8px; text-align:center; font-size:12px; color:#888;">⏳ 加载中...</div>`;
+    } else {
+        imageHtml = '<div style="font-size:12px; color:#888; margin-top:8px;">⚠️ 坡道设施待改善，暂无照片</div>';
+    }
+    
+    return `
+        <div style="min-width: 220px; max-width: 280px;" class="poi-popup" data-poi-id="${poi.id}" data-poi-name="${poi.name}" data-poi-lat="${poi.lat}" data-poi-lng="${poi.lng}">
+            <b>🏢 ${poi.name}</b><br>
+            ⭐ 评分: ${poi.score}/5<br>
+            🛗 电梯: <span style="color:${status.elevator === '正常' ? '#34c759' : '#ff3b30'}">${status.elevator}</span><br>
+            ♿ 坡道: <span style="color:${status.ramp === '正常' ? '#34c759' : '#ff3b30'}">${status.ramp}</span><br>
+            🟨 盲道: ${status.tactilePaving === '有' ? '✓ 有' : '✗ 无'}<br>
+            📶 台阶: ${status.stairs === '无台阶' ? '✓ 无障碍' : '⚠️ 有台阶'}<br>
+            ${imageHtml}
+            <button onclick="window.navigateTo(${poi.lat}, ${poi.lng}, '${poi.name}')" 
+                    style="margin-top:8px; padding:5px 12px; background:#007aff; color:white; border:none; border-radius:20px; cursor:pointer;">
+                🧭 导航至此
+            </button>
+        </div>
+    `;
+}
+
 // ========== POI 标记 ==========
 function addPoiMarkers() {
     detailMarkers.forEach(m => map.removeLayer(m));
@@ -685,6 +787,10 @@ function addPoiMarkers() {
             })
         });
         marker.bindPopup(createPopupContent(poi));
+        
+        // 添加图片加载功能
+        loadPoiImageForMarker(marker, poi);
+        
         detailMarkers.push(marker);
     });
 
@@ -737,53 +843,6 @@ function addPoiMarkers() {
     }).bindPopup('<b>🏫 南华大学（雨母校区）</b><br>点击放大可查看校园内各建筑的无障碍设施');
 
     updateMarkersByZoom();
-}
-
-function updateMarkersByZoom() {
-    const currentZoom = map.getZoom();
-    detailMarkers.forEach(m => map.removeLayer(m));
-    regionMarkers.forEach(m => map.removeLayer(m));
-    if (campusMarker) map.removeLayer(campusMarker);
-    if (currentZoom >= 16) {
-        detailMarkers.forEach(m => m.addTo(map));
-    } else if (currentZoom >= 14) {
-        regionMarkers.forEach(m => m.addTo(map));
-    } else {
-        if (campusMarker) campusMarker.addTo(map);
-    }
-}
-
-function createPopupContent(poi) {
-    const status = facilityStatus[poi.name] || { elevator: '未知', ramp: '未知', tactilePaving: '未知', stairs: '未知' };
-    
-    // 判断坡道是否正常
-    const hasGoodRamp = status.ramp === '正常';
-    
-    // 根据坡道状态决定显示什么
-    let imageHtml = '';
-    if (hasGoodRamp) {
-        imageHtml = `<img src="images/poi/${encodeURIComponent(poi.name)}.jpg" 
-                         style="width:100%; max-height:120px; object-fit:cover; border-radius:12px; margin-top:8px;"
-                         onerror="this.style.display='none'">`;
-    } else {
-        imageHtml = '<div style="font-size:12px; color:#888; margin-top:8px;">⚠️ 坡道设施待改善，暂无照片</div>';
-    }
-    
-    return `
-        <div style="min-width: 220px; max-width: 280px;">
-            <b>🏢 ${poi.name}</b><br>
-            ⭐ 评分: ${poi.score}/5<br>
-            🛗 电梯: <span style="color:${status.elevator === '正常' ? '#34c759' : '#ff3b30'}">${status.elevator}</span><br>
-            ♿ 坡道: <span style="color:${status.ramp === '正常' ? '#34c759' : '#ff3b30'}">${status.ramp}</span><br>
-            🟨 盲道: ${status.tactilePaving === '有' ? '✓ 有' : '✗ 无'}<br>
-            📶 台阶: ${status.stairs === '无台阶' ? '✓ 无障碍' : '⚠️ 有台阶'}<br>
-            ${imageHtml}
-            <button onclick="window.navigateTo(${poi.lat}, ${poi.lng}, '${poi.name}')" 
-                    style="margin-top:8px; padding:5px 12px; background:#007aff; color:white; border:none; border-radius:20px; cursor:pointer;">
-                🧭 导航至此
-            </button>
-        </div>
-    `;
 }
 
 // ========== 障碍物标记 ==========
@@ -1027,6 +1086,43 @@ function checkObstaclesAlongRoute(geojson, strictMode = false) {
     } else return [];
     const threshold = strictMode ? 0.003 : 0.0015;
     return obstacles.filter(obs => coords.some(c => Math.hypot(c.lat - obs.lat, c.lng - obs.lng) < threshold));
+}
+
+// 检查路线上是否有坡道
+// 精确检查路线上实际经过的坡道
+function checkRampsAlongRoute(geojson) {
+    if (!geojson || geojson.type !== 'LineString') {
+        return [];
+    }
+    
+    // 获取路线上的所有坐标点
+    const coords = geojson.coordinates;
+    console.log(`路线上的坐标点数: ${coords.length}`);
+    
+    const threshold = 0.0003; // 约30米精度
+    const rampsFound = new Set(); // 使用 Set 避免重复
+    
+    // 遍历路线上的每个点
+    coords.forEach(coord => {
+        const lng = coord[0];
+        const lat = coord[1];
+        
+        // 检查每个坡道是否靠近当前点
+        roadSegments.forEach(seg => {
+            if (seg.segment_type === '坡道') {
+                // 检查点到坡道起点的距离
+                const distToStart = Math.hypot(lat - seg.start_lat, lng - seg.start_lng);
+                const distToEnd = Math.hypot(lat - seg.end_lat, lng - seg.end_lng);
+                
+                if (distToStart < threshold || distToEnd < threshold) {
+                    rampsFound.add(seg.id);
+                }
+            }
+        });
+    });
+    
+    console.log(`📍 实际经过的坡道数量: ${rampsFound.size}`);
+    return Array.from(rampsFound);
 }
 
 function highlightNearbyObstacles(obsArray) {
@@ -1293,18 +1389,28 @@ async function planRealRoute() {
             const distanceKm = (totalDist / 1000).toFixed(2);
             const durationMin = Math.round(totalDist / 1.2 / 60);
 
-            const msg = `♿ 轮椅优先路线规划成功，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
-            statusEl.innerText = msg;
-            speak(msg);
-            vibrate(3);
-
+            // 构建完整播报消息（合并所有提示）
+            let fullMsg = `♿ 轮椅优先路线规划成功，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
+            
+            // 检查坡道
+            const rampsOnRoute = checkRampsAlongRoute(geojson);
+            if (rampsOnRoute.length > 0) {
+                fullMsg += ` 路线中包含 ${rampsOnRoute.length} 处坡道，请注意减速慢行。`;
+                console.log(`📍 坡道提示: ${rampsOnRoute.length} 处`);
+            }
+            
+            // 检查障碍物
             const warnings = checkObstaclesAlongRoute(geojson, true);
             if (warnings.length > 0) {
                 const types = [...new Set(warnings.map(o => o.type))];
-                const warningMsg = `⚠️ 沿途仍有 ${warnings.length} 处上报的障碍物（${types.join('、')}），请注意。`;
-                speak(warningMsg, 'urgent');
+                fullMsg += ` 沿途有 ${warnings.length} 处障碍物（${types.join('、')}），请注意。`;
                 highlightNearbyObstacles(warnings);
             }
+            
+            // 一次性播报
+            statusEl.innerText = fullMsg;
+            speak(fullMsg);
+            vibrate(3);
 
             usedCustomRoute = true;
         } else {
@@ -1938,6 +2044,40 @@ function locateUser() {
 function saveContrastPref(enabled) { localStorage.setItem('highContrast', enabled); }
 function loadContrastPref() { return localStorage.getItem('highContrast') === 'true'; }
 
+// 打开图片放大模态框
+function openImageModal(imageSrc) {
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImage');
+    
+    if (modal && modalImg) {
+        modal.style.display = 'block';
+        modalImg.src = imageSrc;
+    }
+}
+
+// 关闭图片放大模态框
+function closeImageModal() {
+    const modal = document.getElementById('imageModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// 点击模态框背景关闭
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('imageModal');
+    if (e.target === modal) {
+        closeImageModal();
+    }
+});
+
+// ESC 键关闭
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeImageModal();
+    }
+});
+
 // ========== 页面初始化 ==========
 window.onload = async () => {
     initMap();
@@ -2034,6 +2174,11 @@ window.onload = async () => {
             setTimeout(() => { if (refreshIndicator) refreshIndicator.style.opacity = '1'; }, 300);
         }
     }, 30000);
+    // 初始化图片模态框关闭按钮
+    const closeBtn = document.querySelector('.image-modal-close');
+    if (closeBtn) {
+        closeBtn.onclick = closeImageModal;
+    }
 };
 
 window.navigateTo = async function (lat, lng, name) {
