@@ -215,14 +215,10 @@ class SpeechManager {
         const cleanText = this.cleanText(text);
         if (!cleanText) return;
         const item = { text: cleanText, priority };
-        if (priority === 'urgent') {
-            this.stop();
-            this.queue = [item];
-            this.playNext();
-        } else {
-            this.queue.push(item);
-            if (!this.isPlaying) this.playNext();
-        }
+        // 始终停止当前播报并清空队列，确保只有最新语音被播放
+        this.stop();                // 停止播放并清空队列
+        this.queue = [item];        // 只保留新任务
+        this.playNext();            // 立即播放
     }
     cleanText(text) {
         // 保留中文、数字、字母、空格、常用标点，移除控制字符
@@ -1514,9 +1510,9 @@ async function executeNavigate(destination) {
 
         context.lastRouteInfo = { distance: route.distance, duration: route.duration };
 
-// 在 !usedCustomRoute 分支中
-startMarker = createDraggableMarker([startCoord.lat, startCoord.lng], 'start', '起点');
-endMarker = createDraggableMarker([endCoord.lat, endCoord.lng], 'end', '终点');
+        // 在 !usedCustomRoute 分支中
+        startMarker = createDraggableMarker([startCoord.lat, startCoord.lng], 'start', '起点');
+        endMarker = createDraggableMarker([endCoord.lat, endCoord.lng], 'end', '终点');
 
         currentRouteLayer = L.geoJSON(route.geometry, {
             style: { color: '#007aff', weight: 6, opacity: 0.8 }
@@ -2045,7 +2041,7 @@ window.onload = async () => {
             maxZoom: 19
         }).addTo(map);
     }
-        // 页面加载后自动设置起点和终点并规划路线
+    // 页面加载后自动设置起点和终点并规划路线
     const startInput = document.getElementById('startAddress');
     const endInput = document.getElementById('endAddress');
     if (!startInput.value.trim()) {
