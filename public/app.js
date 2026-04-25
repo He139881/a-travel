@@ -446,10 +446,10 @@ function pathToGeoJSON(pathNodes) {
 
 // ========== 认证相关 ==========
 function getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
-function isLoggedIn() { return !!localStorage.getItem('token'); }
+function isLoggedIn() { return !!sessionStorage.getItem('token'); }
 window.isLoggedIn = isLoggedIn;
 
 // ========== 后端数据加载 ==========
@@ -667,8 +667,8 @@ function updateVoiceButtonState() {
 }
 
 function updateUserStatus() {
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = sessionStorage.getItem('token');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const statusSpan = document.getElementById('userStatus');
     const userCenterBtn = document.getElementById('userCenterBtn');
 
@@ -709,10 +709,18 @@ function updateUserStatus() {
 }
 
 function handleLoginLogout() {
-    const token = localStorage.getItem('token');
-    if (token) {
-        if (confirm('确定要退出登录吗？')) { localStorage.removeItem('token'); localStorage.removeItem('user'); updateUserStatus(); speak('您已退出登录'); location.reload(); }
-    } else { window.location.href = 'login.html'; }
+const token = sessionStorage.getItem('token');
+if (token) {
+    if (confirm('确定要退出登录吗？')) {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        updateUserStatus();
+        speak('您已退出登录');
+        location.reload();
+    }
+} else {
+    window.location.href = 'login.html';
+}
 }
 
 function vibrate(pattern) {

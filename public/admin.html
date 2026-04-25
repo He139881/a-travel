@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,18 +14,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* 基础重置与原有样式保持不变，此处只补充新增样式 */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
             background: #f5f7fb;
             color: #333;
             line-height: 1.5;
         }
+
         .admin-header {
             background: white;
             padding: 16px 24px;
             border-radius: 0 0 24px 24px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
@@ -32,17 +39,22 @@
             flex-wrap: wrap;
             gap: 12px;
         }
-        .admin-header h1 { font-size: 1.6rem; }
+
+        .admin-header h1 {
+            font-size: 1.6rem;
+        }
+
         .admin-tabs {
             background: white;
             margin: 0 20px;
             border-radius: 30px;
             padding: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
         }
+
         .tab-btn {
             border-radius: 30px;
             padding: 10px 24px;
@@ -54,31 +66,39 @@
             cursor: pointer;
             transition: 0.2s;
         }
+
         .tab-btn.active {
             background: #007aff;
             color: white;
         }
+
         .stats-cards {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 16px;
             padding: 20px;
         }
+
         .stats-cards .card {
             background: white;
             border-radius: 24px;
             padding: 20px;
             text-align: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
             transition: transform 0.2s;
         }
-        .stats-cards .card:hover { transform: translateY(-2px); }
+
+        .stats-cards .card:hover {
+            transform: translateY(-2px);
+        }
+
         .charts-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             padding: 0 20px 20px;
         }
+
         .filter-bar {
             background: white;
             padding: 20px;
@@ -88,9 +108,12 @@
             grid-template-columns: 1fr auto auto auto auto auto;
             gap: 12px;
             align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
         }
-        .filter-bar input, .filter-bar select, .filter-bar button {
+
+        .filter-bar input,
+        .filter-bar select,
+        .filter-bar button {
             height: 44px;
             padding: 0 16px;
             border-radius: 24px;
@@ -98,14 +121,28 @@
             background: #f9f9fb;
             font-size: 14px;
         }
-        .filter-bar .btn-primary { background: #007aff; color: white; border: none; cursor: pointer; }
-        .filter-bar .btn-secondary { background: #f2f2f7; color: #007aff; border: none; cursor: pointer; }
+
+        .filter-bar .btn-primary {
+            background: #007aff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .filter-bar .btn-secondary {
+            background: #f2f2f7;
+            color: #007aff;
+            border: none;
+            cursor: pointer;
+        }
+
         .poi-actions {
             display: flex;
             gap: 16px;
             margin-bottom: 24px;
             flex-wrap: wrap;
         }
+
         .poi-actions button {
             border-radius: 40px;
             font-weight: 600;
@@ -116,38 +153,53 @@
             cursor: pointer;
             border: none;
         }
+
         .poi-actions .btn-primary {
             padding: 8px 20px;
             font-size: 14px;
             background: linear-gradient(135deg, #007aff, #0051b3);
             color: white;
-            box-shadow: 0 4px 12px rgba(0,122,255,0.25);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
         }
+
         .poi-actions .btn-secondary {
             padding: 10px 24px;
             background: white;
             color: #007aff;
             border: 1px solid #e2e2e8;
         }
+
         .table-container {
             background: white;
             border-radius: 24px;
             margin: 0 20px 20px;
             overflow-x: auto;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             min-width: 800px;
         }
-        th, td {
+
+        th,
+        td {
             padding: 14px 12px;
             text-align: left;
             border-bottom: 1px solid #f0f0f0;
         }
-        th { background: #f8f9fc; font-weight: 600; color: #2c3e50; }
-        tbody tr:hover { background: #f8f9fc; }
+
+        th {
+            background: #f8f9fc;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fc;
+        }
+
         .status-badge {
             padding: 4px 10px;
             border-radius: 20px;
@@ -155,9 +207,22 @@
             font-weight: 500;
             display: inline-block;
         }
-        .status-未处理 { background: #ffe5e5; color: #ff3b30; }
-        .status-处理中 { background: #fff0e0; color: #ff9500; }
-        .status-已完成 { background: #e5f5e5; color: #34c759; }
+
+        .status-未处理 {
+            background: #ffe5e5;
+            color: #ff3b30;
+        }
+
+        .status-处理中 {
+            background: #fff0e0;
+            color: #ff9500;
+        }
+
+        .status-已完成 {
+            background: #e5f5e5;
+            color: #34c759;
+        }
+
         .photo-thumb {
             width: 40px;
             height: 40px;
@@ -165,6 +230,7 @@
             border-radius: 12px;
             cursor: pointer;
         }
+
         .table-container .action-btn {
             padding: 6px 14px;
             border-radius: 30px;
@@ -176,14 +242,19 @@
             display: inline-block;
             min-width: 64px;
             text-align: center;
-            background: rgba(0,122,255,0.1);
+            background: rgba(0, 122, 255, 0.1);
             color: #007aff;
             margin: 2px;
         }
-        .table-container .action-btn:hover { background: #007aff; color: white; }
+
+        .table-container .action-btn:hover {
+            background: #007aff;
+            color: white;
+        }
+
         .btn-back {
             display: inline-block;
-            background: rgba(0,122,255,0.1);
+            background: rgba(0, 122, 255, 0.1);
             color: #007aff;
             padding: 8px 20px;
             border-radius: 30px;
@@ -192,7 +263,12 @@
             transition: 0.2s;
             margin-right: 10px;
         }
-        .btn-back:hover { background: #007aff; color: white; }
+
+        .btn-back:hover {
+            background: #007aff;
+            color: white;
+        }
+
         .logout-btn {
             background: #ff3b30;
             color: white;
@@ -201,17 +277,21 @@
             border-radius: 30px;
             cursor: pointer;
         }
+
         /* 模态框通用 */
         .modal {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
             z-index: 2000;
             align-items: center;
             justify-content: center;
         }
+
         .modal-content {
             background: white;
             padding: 24px;
@@ -221,36 +301,52 @@
             overflow-y: auto;
             position: relative;
         }
+
         .close-btn {
             position: absolute;
-            top: 15px; right: 20px;
+            top: 15px;
+            right: 20px;
             font-size: 28px;
             cursor: pointer;
             color: #888;
         }
+
         /* 自定义弹窗美化 */
         .custom-alert-overlay {
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(8px);
             z-index: 10000;
             display: none;
             align-items: center;
             justify-content: center;
         }
+
         .custom-alert-box {
             background: white;
             border-radius: 32px;
             width: 280px;
             padding: 24px 20px 20px;
             text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
             animation: fadeInUp 0.2s ease;
         }
-        .custom-alert-icon { font-size: 48px; margin-bottom: 12px; }
-        .custom-alert-msg { font-size: 16px; margin: 12px 0 20px; line-height: 1.4; }
+
+        .custom-alert-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .custom-alert-msg {
+            font-size: 16px;
+            margin: 12px 0 20px;
+            line-height: 1.4;
+        }
+
         .custom-alert-ok {
             background: #007aff;
             border: none;
@@ -261,11 +357,22 @@
             cursor: pointer;
             width: 100%;
         }
+
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .hidden { display: none !important; }
+
+        .hidden {
+            display: none !important;
+        }
 
         /* 美化表单模态框 */
         .form-modal .modal-content {
@@ -274,9 +381,11 @@
             border-radius: 32px;
             background: linear-gradient(145deg, #ffffff 0%, #f8f9fc 100%);
         }
+
         .form-group {
             margin-bottom: 20px;
         }
+
         .form-group label {
             display: block;
             font-weight: 600;
@@ -284,7 +393,9 @@
             color: #2c3e50;
             font-size: 14px;
         }
-        .form-group input, .form-group select {
+
+        .form-group input,
+        .form-group select {
             width: 100%;
             padding: 12px 16px;
             border: 1px solid #e2e2e8;
@@ -293,24 +404,30 @@
             transition: 0.2s;
             background: white;
         }
-        .form-group input:focus, .form-group select:focus {
+
+        .form-group input:focus,
+        .form-group select:focus {
             border-color: #007aff;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
         }
+
         .rating-slider {
             display: flex;
             align-items: center;
             gap: 16px;
         }
+
         .rating-slider input {
             flex: 1;
             height: 6px;
             -webkit-appearance: none;
+            appearance: none;
             background: #e2e2e8;
             border-radius: 3px;
             outline: none;
         }
+
         .rating-slider input::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 18px;
@@ -319,8 +436,9 @@
             background: #007aff;
             cursor: pointer;
             border: 2px solid white;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
         }
+
         .rating-value {
             font-weight: bold;
             color: #007aff;
@@ -328,13 +446,16 @@
             text-align: center;
             font-size: 16px;
         }
+
         .modal-actions {
             display: flex;
             gap: 12px;
             justify-content: flex-end;
             margin-top: 28px;
         }
-        .btn-primary, .btn-secondary {
+
+        .btn-primary,
+        .btn-secondary {
             padding: 8px 20px;
             border-radius: 40px;
             font-weight: 600;
@@ -343,28 +464,63 @@
             border: none;
             transition: 0.2s;
         }
+
         .btn-primary {
             background: linear-gradient(135deg, #007aff, #0051b3);
             color: white;
         }
+
         .btn-primary:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
         }
+
         .btn-secondary {
             background: #f2f2f7;
             color: #007aff;
         }
+
         .btn-secondary:hover {
             background: #e5e5ea;
         }
 
         /* 响应式 */
-        @media (max-width: 1000px) { .filter-bar { grid-template-columns: repeat(2, 1fr); } .filter-bar input { grid-column: span 2; } }
-        @media (max-width: 700px) { .stats-cards { grid-template-columns: repeat(2, 1fr); } .charts-container { grid-template-columns: 1fr; } }
-        @media (max-width: 600px) { .filter-bar { grid-template-columns: 1fr; } .poi-actions { flex-direction: column; } .admin-tabs { justify-content: center; } }
+        @media (max-width: 1000px) {
+            .filter-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filter-bar input {
+                grid-column: span 2;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .stats-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .filter-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .poi-actions {
+                flex-direction: column;
+            }
+
+            .admin-tabs {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
+
 <body>
     <div class="admin-header">
         <h1>🚧 无障碍社区互助后台</h1>
@@ -384,10 +540,22 @@
     <!-- 障碍物管理 Tab -->
     <div id="obstaclesTab" class="tab-content">
         <div class="stats-cards">
-            <div class="card"><h3>总上报</h3><div id="totalCount">0</div></div>
-            <div class="card"><h3>待处理</h3><div id="pendingCount">0</div></div>
-            <div class="card"><h3>处理中</h3><div id="processingCount">0</div></div>
-            <div class="card"><h3>已完成</h3><div id="resolvedCount">0</div></div>
+            <div class="card">
+                <h3>总上报</h3>
+                <div id="totalCount">0</div>
+            </div>
+            <div class="card">
+                <h3>待处理</h3>
+                <div id="pendingCount">0</div>
+            </div>
+            <div class="card">
+                <h3>处理中</h3>
+                <div id="processingCount">0</div>
+            </div>
+            <div class="card">
+                <h3>已完成</h3>
+                <div id="resolvedCount">0</div>
+            </div>
         </div>
         <div class="charts-container">
             <div id="typeChart" style="height:250px;"></div>
@@ -597,4 +765,5 @@
 
     <script src="admin.js"></script>
 </body>
+
 </html>
