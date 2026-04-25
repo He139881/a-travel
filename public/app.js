@@ -671,15 +671,39 @@ function updateUserStatus() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const statusSpan = document.getElementById('userStatus');
     const userCenterBtn = document.getElementById('userCenterBtn');
+
     if (token && user.username) {
+        // 登录状态
         statusSpan.innerHTML = `✅ ${user.username}`;
-        if (userCenterBtn) { userCenterBtn.innerHTML = '👤 我的'; userCenterBtn.href = 'user.html'; userCenterBtn.onclick = null; }
+        if (userCenterBtn) {
+            if (user.role === 'admin') {
+                // 管理员：禁用“我的”按钮
+                userCenterBtn.innerHTML = `<svg class="icon-svg" aria-hidden="true"><use href="#icon-user"/></svg> 我的`;
+                userCenterBtn.href = 'javascript:void(0)';
+                userCenterBtn.classList.add('btn-disabled');
+                userCenterBtn.title = '管理员无法使用个人中心';
+                userCenterBtn.onclick = (e) => { e.preventDefault(); };
+            } else {
+                // 普通用户：正常可用
+                userCenterBtn.innerHTML = `<svg class="icon-svg" aria-hidden="true"><use href="#icon-user"/></svg> 我的`;
+                userCenterBtn.href = 'user.html';
+                userCenterBtn.classList.remove('btn-disabled');
+                userCenterBtn.title = '';
+                userCenterBtn.onclick = null;
+            }
+        }
     } else {
+        // 未登录：显示“登录”按钮，可点击
         statusSpan.innerHTML = '';
         if (userCenterBtn) {
-            userCenterBtn.innerHTML = '👤 登录';
+            userCenterBtn.innerHTML = `<svg class="icon-svg" aria-hidden="true"><use href="#icon-user"/></svg> 登录`;
             userCenterBtn.href = 'javascript:void(0)';
-            userCenterBtn.onclick = (e) => { e.preventDefault(); window.location.href = 'login.html'; };
+            userCenterBtn.classList.remove('btn-disabled');
+            userCenterBtn.title = '';
+            userCenterBtn.onclick = (e) => {
+                e.preventDefault();
+                window.location.href = 'login.html';
+            };
         }
     }
 }
@@ -702,12 +726,22 @@ function renderFacilityPanel() {
     if (!container) return;
     let html = '';
     for (let name in facilityStatus) {
+        // 跳过已从 POI 列表中删除的地点
+        if (!poiList.some(p => p.name === name)) {
+            continue;
+        }
         const status = facilityStatus[name];
         const elevatorClass = status.elevator === '正常' ? 'status-normal' : 'status-warning';
         const rampClass = status.ramp === '正常' ? 'status-normal' : 'status-warning';
         const tactileClass = status.tactilePaving === '有' ? 'status-normal' : 'status-warning';
         const stairsClass = status.stairs === '无台阶' ? 'status-normal' : 'status-warning';
-        html += `<div class="facility-item" data-name="${name}"><div class="facility-name">🏢 ${name}</div><div class="facility-detail">🛗 电梯: <span class="${elevatorClass}">${status.elevator}</span></div><div class="facility-detail">♿ 坡道: <span class="${rampClass}">${status.ramp}</span></div><div class="facility-detail">🟨 盲道: <span class="${tactileClass}">${status.tactilePaving === '有' ? '✓ 有' : '✗ 无'}</span></div><div class="facility-detail">📶 台阶: <span class="${stairsClass}">${status.stairs === '无台阶' ? '✓ 无障碍' : '⚠️ 有台阶'}</span></div></div>`;
+        html += `<div class="facility-item" data-name="${name}">
+            <div class="facility-name">🏢 ${name}</div>
+            <div class="facility-detail">🛗 电梯: <span class="${elevatorClass}">${status.elevator}</span></div>
+            <div class="facility-detail">♿ 坡道: <span class="${rampClass}">${status.ramp}</span></div>
+            <div class="facility-detail">🟨 盲道: <span class="${tactileClass}">${status.tactilePaving === '有' ? '✓ 有' : '✗ 无'}</span></div>
+            <div class="facility-detail">📶 台阶: <span class="${stairsClass}">${status.stairs === '无台阶' ? '✓ 无障碍' : '⚠️ 有台阶'}</span></div>
+        </div>`;
     }
     container.innerHTML = html;
     document.querySelectorAll('.facility-item').forEach(el => {
@@ -1877,7 +1911,7 @@ function showStats() {
         window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
     }
     modal.style.display = 'flex';
-    const accessibleCount = (poiList || []).filter(p => p.score >= 3.5).length;
+    const accessibleCount = (poiList || []).filter(p => p.score >= 4).length;
     document.getElementById('statsTotalPoi').innerText = (poiList || []).length;
     document.getElementById('statsAccessible').innerText = accessibleCount;
     document.getElementById('statsObstacleTotal').innerText = (obstacles || []).length;
@@ -1888,8 +1922,8 @@ function showStats() {
         series: [{
             type: 'pie', radius: '55%',
             data: [
-                { name: '无障碍友好 (≥3.5分)', value: accessibleCount, itemStyle: { color: '#34c759' } },
-                { name: '待改善 (<3.5分)', value: (poiList || []).length - accessibleCount, itemStyle: { color: '#ff9500' } }
+                { name: '无障碍友好 (≥4分)', value: accessibleCount, itemStyle: { color: '#34c759' } },
+                { name: '待改善 (<4分)', value: (poiList || []).length - accessibleCount, itemStyle: { color: '#ff9500' } }
             ],
             label: { show: true, formatter: '{b}: {d}%' }
         }]

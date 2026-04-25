@@ -7,21 +7,357 @@
     <title>无障碍出行伴侣 · 城市版</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/graphlib@2.1.8/dist/graphlib.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/graphlib@2.1.8/dist/graphlib.min.js">
+    </script>
     <style>
-        /* 偏好面板等样式已内嵌，因 style.css 已完整，此处只需留空或补充 */
+        /* ========== SVG 图标基础样式 ========== */
+        .icon-svg {
+            width: 1.15em;
+            height: 1.15em;
+            display: inline-block;
+            vertical-align: -0.18em;
+            flex-shrink: 0;
+            pointer-events: none;
+        }
+
+        /* 大号图标保留给特定场景（弹窗、标题等） */
+        .icon-svg.lg {
+            width: 1.5em;
+            height: 1.5em;
+            vertical-align: -0.25em;
+        }
+
+        /* 按钮内图标与文字间距统一 */
+        .btn-primary .icon-svg,
+        .btn-danger .icon-svg,
+        .action-btn .icon-svg,
+        .tool-btn .icon-svg,
+        .text-btn .icon-svg {
+            width: 1.15em;
+            height: 1.15em;
+            margin-right: 0.3em;
+        }
+
+        /* action-grid 按钮中图标居中 */
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35em;
+        }
+
+        .btn-primary,
+        .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3em;
+        }
+
+        .text-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25em;
+        }
+
+        .tool-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35em;
+        }
+
+        /* 偏好下拉中的图标 */
+        .pref-title .icon-svg,
+        .pref-item label .icon-svg {
+            margin-right: 0.25em;
+            vertical-align: -0.15em;
+        }
+
+        /* 语音提示面板标签 */
+        .voice-cmd {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3em;
+            cursor: pointer;
+            padding: 6px 12px;
+            margin: 4px;
+            background: #f0f4ff;
+            border-radius: 20px;
+            font-size: 13px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+
+        .voice-cmd:hover {
+            background: #dce6ff;
+            border-color: #a0b8f0;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .voice-cmd .icon-svg {
+            width: 1em;
+            height: 1em;
+            flex-shrink: 0;
+        }
+
+        /* 模态框标题图标 */
+        .modal-content h3 .icon-svg {
+            margin-right: 0.35em;
+            vertical-align: -0.2em;
+        }
+
+        /* 设施面板标题 */
+        #facilityPanelHeader .icon-svg {
+            margin-right: 0.35em;
+            vertical-align: -0.18em;
+        }
+
+        /* 状态栏 */
+        #statusText .icon-svg {
+            margin-right: 0.3em;
+            vertical-align: -0.16em;
+        }
+
+        /* 偏好dropdown内图标 */
+        #prefDropdown .icon-svg {
+            width: 1em;
+            height: 1em;
+            vertical-align: -0.13em;
+            margin-right: 0.2em;
+        }
+
+        /* 无障碍label */
+        .wheelchair-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3em;
+            cursor: pointer;
+        }
+
+        .wheelchair-label .icon-svg {
+            width: 1.2em;
+            height: 1.2em;
+            vertical-align: -0.2em;
+        }
+
+        /* 自定义弹窗图标 */
+        .custom-alert-icon .icon-svg {
+            width: 2.4em;
+            height: 2.4em;
+        }
+
+        /* 暗色/高对比模式下保持图标可见 */
+        body.high-contrast .icon-svg {
+            filter: brightness(1.2);
+        }
     </style>
 </head>
 
 <body>
+
+    <!-- ==================== SVG 图标库（隐藏） ==================== -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;" aria-hidden="true">
+        <!-- 搜索 -->
+        <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10.5" cy="10.5" r="7.5" />
+            <line x1="16.5" y1="16.5" x2="21" y2="21" />
+        </symbol>
+        <!-- 垃圾桶/清除 -->
+        <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+        </symbol>
+        <!-- 无障碍/轮椅 -->
+        <symbol id="icon-wheelchair" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="2" />
+            <path d="M8 22c4.5-3 8-7.5 8-13" />
+            <path d="M7 14h6l4 8" />
+            <circle cx="17" cy="19" r="3" />
+            <path d="M17 16v4" />
+        </symbol>
+        <!-- 位置标记 -->
+        <symbol id="icon-map-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z" />
+            <circle cx="12" cy="10" r="3" />
+        </symbol>
+        <!-- 齿轮/设置 -->
+        <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path
+            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001.08 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1.08z" />
+        </symbol>
+        <!-- 麦克风 -->
+        <symbol id="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+            <path d="M19 10v2a7 7 0 01-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+        </symbol>
+        <!-- 铃铛/警报 -->
+        <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+        </symbol>
+        <!-- 编辑/笔 -->
+        <symbol id="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </symbol>
+        <!-- 对比度 -->
+        <symbol id="icon-contrast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a10 10 0 010 20V2z" fill="currentColor" opacity="0.3" />
+        </symbol>
+        <!-- 用户 -->
+        <symbol id="icon-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+        </symbol>
+        <!-- 柱状图/数据 -->
+        <symbol id="icon-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+            <line x1="2" y1="20" x2="22" y2="20" />
+        </symbol>
+        <!-- 建筑/设施 -->
+        <symbol id="icon-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" />
+            <line x1="9" y1="6" x2="9" y2="6.01" />
+            <line x1="15" y1="6" x2="15" y2="6.01" />
+            <line x1="9" y1="10" x2="9" y2="10.01" />
+            <line x1="15" y1="10" x2="15" y2="10.01" />
+            <line x1="9" y1="14" x2="9" y2="14.01" />
+            <line x1="15" y1="14" x2="15" y2="14.01" />
+            <path d="M9 18h6v4H9z" />
+        </symbol>
+        <!-- 向下箭头 -->
+        <symbol id="icon-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <polyline points="19 12 12 19 5 12" />
+        </symbol>
+        <!-- 向上箭头 -->
+        <symbol id="icon-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5" />
+            <polyline points="5 12 12 5 19 12" />
+        </symbol>
+        <!-- 信息/欢迎 -->
+        <symbol id="icon-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+        </symbol>
+        <!-- 图书馆/书籍 -->
+        <symbol id="icon-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+            <line x1="8" y1="7" x2="16" y2="7" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+        </symbol>
+        <!-- 食堂/餐食 -->
+        <symbol id="icon-utensils" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2" />
+            <path d="M7 2v20" />
+            <path d="M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+        </symbol>
+        <!-- 电梯 -->
+        <symbol id="icon-elevator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="2" width="18" height="20" rx="2" />
+            <polyline points="8 6 12 10 16 6" />
+            <polyline points="8 18 12 14 16 18" />
+            <line x1="12" y1="10" x2="12" y2="14" />
+        </symbol>
+        <!-- 坡道 -->
+        <symbol id="icon-ramp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21L21 3" />
+            <polyline points="14 3 21 3 21 10" />
+        </symbol>
+        <!-- 门/出口 -->
+        <symbol id="icon-door" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18" />
+            <path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" />
+            <circle cx="15" cy="12" r="1.5" />
+        </symbol>
+        <!-- 紧急/警报三角 -->
+        <symbol id="icon-alert-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+        </symbol>
+        <!-- 发送 -->
+        <symbol id="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </symbol>
+        <!-- 提示/灯泡 -->
+        <symbol id="icon-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6" />
+            <path d="M10 22h4" />
+            <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0018 8 6 6 0 006 8c0 1.23.49 2.4 1.41 3.27.76.76 1.23 1.52 1.41 2.5" />
+        </symbol>
+        <!-- 帮助/问号 -->
+        <symbol id="icon-help-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+        </symbol>
+        <!-- 趋势/图表（偏好用） -->
+        <symbol id="icon-trending" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+            <polyline points="17 6 23 6 23 12" />
+        </symbol>
+        <!-- 禁止/避开 -->
+        <symbol id="icon-slash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </symbol>
+    </svg>
+
+    <!-- ==================== 页面内容 ==================== -->
     <div id="map"></div>
 
     <!-- 顶部状态栏 -->
     <div id="status">
-        <span id="statusText">👋 欢迎使用无障碍出行伴侣</span>
+        <span id="statusText">
+            <svg class="icon-svg" aria-hidden="true"><use href="#icon-info"/></svg>
+            欢迎使用无障碍出行伴侣
+        </span>
         <div class="status-actions">
             <button id="pauseResumeBtn" title="暂停/继续播报">⏸️</button>
             <button id="stopSpeakBtn" title="停止播报">⏹️</button>
@@ -36,32 +372,49 @@
                     <input type="text" id="startAddress" placeholder="起点（例如：西门）" autocomplete="off">
                     <div id="startSuggestions" class="autocomplete-items"></div>
                 </div>
-                <div class="arrow">↓</div>
+                <div class="arrow">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-arrow-down"/></svg>
+                </div>
                 <div class="autocomplete-wrapper">
                     <input type="text" id="endAddress" placeholder="终点（例如：图书馆）" autocomplete="off">
                     <div id="endSuggestions" class="autocomplete-items"></div>
                 </div>
             </div>
             <div class="btn-row">
-                <button id="searchRouteBtn" class="btn-primary">🔍 规划</button>
-                <button id="clearRouteBtn" class="btn-danger">🗑️ 清除</button>
+                <button id="searchRouteBtn" class="btn-primary">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-search"/></svg> 规划
+                </button>
+                <button id="clearRouteBtn" class="btn-danger">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-trash"/></svg> 清除
+                </button>
             </div>
             <div class="options-row">
                 <label class="wheelchair-label">
-                    <input type="checkbox" id="wheelchairModeSearch" checked> ♿ 无障碍优先
+                    <input type="checkbox" id="wheelchairModeSearch" checked>
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-wheelchair"/></svg> 无障碍优先
                 </label>
-                <button id="useMyLocationBtn" class="text-btn">📍 我的位置</button>
+                <button id="useMyLocationBtn" class="text-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-map-pin"/></svg> 我的位置
+                </button>
             </div>
             <div class="pref-wrapper">
-                <button id="showPrefBtn" class="text-btn">⚙️ 偏好</button>
+                <button id="showPrefBtn" class="text-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-settings"/></svg> 偏好
+                </button>
                 <div id="prefDropdown">
-                    <div class="pref-title">🚀 路径规划偏好</div>
+                    <div class="pref-title">
+                        <svg class="icon-svg" aria-hidden="true"><use href="#icon-trending"/></svg> 路径规划偏好
+                    </div>
                     <div class="pref-item">
-                        <label>📈 坡道偏好</label>
+                        <label>
+                            <svg class="icon-svg" aria-hidden="true"><use href="#icon-ramp"/></svg> 坡道偏好
+                        </label>
                         <input type="checkbox" id="rampPrefer">
                     </div>
                     <div class="pref-item-block">
-                        <label>🚫 避开障碍:</label>
+                        <label>
+                            <svg class="icon-svg" aria-hidden="true"><use href="#icon-slash"/></svg> 避开障碍:
+                        </label>
                         <div class="obstacle-types">
                             <label><input type="checkbox" value="台阶" class="avoid-type"> 台阶</label>
                             <label><input type="checkbox" value="坡道损坏" class="avoid-type"> 坡道损坏</label>
@@ -75,25 +428,41 @@
 
         <div class="glass-card action-card">
             <div class="action-grid">
-                <button id="voiceBtn" class="action-btn voice-btn">🎤 语音</button>
-                <button id="sosBtn" class="action-btn sos-btn">🆘 SOS</button>
-                <button id="reportBtn" class="action-btn">📝 上报</button>
-                <a href="admin.html" target="_blank" class="action-btn">⚙️ 管理</a>
-                <button id="highContrastBtn" class="action-btn">🌗 高对比</button>
-                <a href="user.html" id="userCenterBtn" class="action-btn">👤 我的</a>
+                <button id="voiceBtn" class="action-btn voice-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-mic"/></svg> 语音
+                </button>
+                <button id="sosBtn" class="action-btn sos-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-alert-triangle"/></svg> SOS
+                </button>
+                <button id="reportBtn" class="action-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-edit"/></svg> 上报
+                </button>
+                <a href="admin.html" target="_blank" class="action-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-settings"/></svg> 管理
+                </a>
+                <button id="highContrastBtn" class="action-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-contrast"/></svg> 高对比
+                </button>
+                <a href="user.html" id="userCenterBtn" class="action-btn">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-user"/></svg> 我的
+                </a>
             </div>
             <span id="userStatus" class="user-status-text"></span>
         </div>
 
         <div class="bottom-tools">
-            <button id="statsBtn" class="tool-btn">📊 数据看板</button>
+            <button id="statsBtn" class="tool-btn">
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-bar-chart"/></svg> 数据看板
+            </button>
         </div>
     </div>
 
     <!-- 右侧设施面板 -->
     <div id="facilityPanel" class="facility-panel compact">
         <div class="panel-header" id="facilityPanelHeader">
-            <span>🏢 实时设施状态</span>
+            <span>
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-building"/></svg> 实时设施状态
+            </span>
             <span id="facilityToggleIcon">▼</span>
         </div>
         <div id="facilityList"></div>
@@ -103,9 +472,13 @@
     <div id="reportModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" id="closeReportModal">&times;</span>
-            <h3>📝 上报障碍物</h3>
+            <h3>
+                <svg class="icon-svg lg" aria-hidden="true"><use href="#icon-edit"/></svg> 上报障碍物
+            </h3>
             <div id="reportLocationInfo">
-                <strong>📍 障碍物所在地点：</strong><br>
+                <strong>
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-map-pin"/></svg> 障碍物所在地点：
+                </strong><br>
                 <span id="reportLocationName">正在获取位置...</span><br>
                 <span id="reportLocationCoords"></span>
             </div>
@@ -123,10 +496,12 @@
                 <label>拍照上传：</label>
                 <input type="file" id="obstaclePhoto" accept="image/*" capture="environment">
                 <img id="photoPreview"
-                    style="display:none; max-width:100%; max-height:200px; margin-top:8px; border-radius:12px;">
+                style="display:none; max-width:100%; max-height:200px; margin-top:8px; border-radius:12px;">
                 <input type="hidden" id="obstacleLat">
                 <input type="hidden" id="obstacleLng">
-                <p id="locationHint">📍 将使用当前地图中心位置</p>
+                <p id="locationHint">
+                    <svg class="icon-svg" aria-hidden="true"><use href="#icon-map-pin"/></svg> 将使用当前地图中心位置
+                </p>
                 <button type="submit" class="btn-primary">提交上报</button>
             </form>
         </div>
@@ -136,104 +511,253 @@
     <div id="sosModal" class="modal">
         <div class="modal-content" style="max-width: 420px;">
             <span class="close-btn" id="closeSosModal">&times;</span>
-            <h3>🆘 紧急求助</h3>
+            <h3>
+                <svg class="icon-svg lg" aria-hidden="true"><use href="#icon-alert-triangle"/></svg> 紧急求助
+            </h3>
             <div id="sosLocationInfo"
-                style="background: #f0f7ff; padding: 12px; border-radius: 16px; margin-bottom: 15px; font-size: 13px;">
-                <strong>📍 您的位置：</strong><br>
-                <span id="sosAddress">正在获取...</span>
-            </div>
-            <div class="form-group">
-                <label>💬 求助详情（可选）</label>
-                <textarea id="sosMessage" rows="3" placeholder="请描述您需要什么帮助…"
-                    style="width:100%; padding:12px; border:1px solid #e0e0e0; border-radius:16px; font-size:14px; resize:vertical;"></textarea>
-            </div>
-            <button id="confirmSosBtn" class="btn-primary" style="margin-top: 10px; background: #ff3b30;">🚨 立即发送
-                SOS</button>
+            style="background: #f0f7ff; padding: 12px; border-radius: 16px; margin-bottom: 15px; font-size: 13px;">
+            <strong>
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-map-pin"/></svg> 您的位置：
+            </strong><br>
+            <span id="sosAddress">正在获取...</span>
+        </div>
+        <div class="form-group">
+            <label>
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-info"/></svg> 求助详情（可选）
+            </label>
+            <textarea id="sosMessage" rows="3" placeholder="请描述您需要什么帮助…"
+            style="width:100%; padding:12px; border:1px solid #e0e0e0; border-radius:16px; font-size:14px; resize:vertical;"></textarea>
+        </div>
+        <button id="confirmSosBtn" class="btn-primary" style="margin-top: 10px; background: #ff3b30;">
+            <svg class="icon-svg" aria-hidden="true"><use href="#icon-send"/></svg> 立即发送SOS
+        </button>
+    </div>
+</div>
+
+<!-- 语音指令提示面板 -->
+<div id="voiceHintPanel" class="voice-hint">
+    <div class="hint-header">
+        <h4>
+            <svg class="icon-svg" aria-hidden="true"><use href="#icon-mic"/></svg> 您可以这样说
+        </h4>
+        <button onclick="document.getElementById('voiceHintPanel').style.display='none'">&times;</button>
+    </div>
+    <div class="hint-tags">
+        <span class="voice-cmd"
+        onclick="document.getElementById('endAddress').value='图书馆'; speak('导航到图书馆'); planRealRoute();">
+        <svg class="icon-svg" aria-hidden="true"><use href="#icon-book"/></svg> 导航到图书馆
+    </span>
+    <span class="voice-cmd"
+    onclick="document.getElementById('endAddress').value='食堂'; speak('导航到食堂'); planRealRoute();">
+    <svg class="icon-svg" aria-hidden="true"><use href="#icon-utensils"/></svg> 导航到食堂
+</span>
+<span class="voice-cmd" onclick="speak('附近的电梯'); queryFacility('电梯')">
+    <svg class="icon-svg" aria-hidden="true"><use href="#icon-elevator"/></svg> 找电梯
+</span>
+<span class="voice-cmd" onclick="speak('附近的坡道'); queryFacility('坡道')">
+    <svg class="icon-svg" aria-hidden="true"><use href="#icon-ramp"/></svg> 找坡道
+</span>
+<span class="voice-cmd" onclick="speak('我要去西门'); executeNavigate('西门')">
+    <svg class="icon-svg" aria-hidden="true"><use href="#icon-door"/></svg> 去西门
+</span>
+</div>
+<p class="hint-footer">点击标签快速执行，或直接说出指令</p>
+</div>
+
+<!-- 自定义单按钮弹窗 -->
+<div id="customAlertOverlay" class="custom-alert-overlay" style="display:none;">
+    <div class="custom-alert-box">
+        <div class="custom-alert-icon" id="customAlertIcon">
+            <svg class="icon-svg lg" aria-hidden="true"><use href="#icon-info"/></svg>
+        </div>
+        <p id="customAlertMsg" class="custom-alert-msg"></p>
+        <div class="custom-alert-btns" id="customAlertBtns">
+            <button id="customAlertOkBtn" class="btn-primary custom-alert-ok">确 定</button>
         </div>
     </div>
+</div>
 
-    <!-- 语音指令提示面板 -->
-    <div id="voiceHintPanel" class="voice-hint">
-        <div class="hint-header">
-            <h4>🎤 您可以这样说</h4>
-            <button onclick="document.getElementById('voiceHintPanel').style.display='none'">&times;</button>
+<!-- 自定义双按钮确认弹窗 -->
+<div id="customConfirmOverlay" class="custom-alert-overlay" style="display:none;">
+    <div class="custom-alert-box" style="width: 280px;">
+        <div class="custom-alert-icon" id="confirmIcon">
+            <svg class="icon-svg lg" aria-hidden="true"><use href="#icon-help-circle"/></svg>
         </div>
-        <div class="hint-tags">
-            <span class="voice-cmd"
-                onclick="document.getElementById('endAddress').value='图书馆'; speak('导航到图书馆'); planRealRoute();">📖
-                导航到图书馆</span>
-            <span class="voice-cmd"
-                onclick="document.getElementById('endAddress').value='食堂'; speak('导航到食堂'); planRealRoute();">🍜
-                导航到食堂</span>
-            <span class="voice-cmd" onclick="speak('附近的电梯'); queryFacility('电梯')">🛗 找电梯</span>
-            <span class="voice-cmd" onclick="speak('附近的坡道'); queryFacility('坡道')">♿ 找坡道</span>
-            <span class="voice-cmd" onclick="speak('我要去西门'); executeNavigate('西门')">🚪 去西门</span>
-        </div>
-        <p class="hint-footer">点击标签快速执行，或直接说出指令</p>
-    </div>
-
-    <!-- 自定义单按钮弹窗 -->
-    <div id="customAlertOverlay" class="custom-alert-overlay" style="display:none;">
-        <div class="custom-alert-box">
-            <div class="custom-alert-icon" id="customAlertIcon">💬</div>
-            <p id="customAlertMsg" class="custom-alert-msg"></p>
-            <div class="custom-alert-btns" id="customAlertBtns">
-                <button id="customAlertOkBtn" class="btn-primary custom-alert-ok">确 定</button>
-            </div>
+        <p id="confirmMsg" class="custom-alert-msg"></p>
+        <div style="display: flex; gap: 12px; margin-top: 8px;">
+            <button id="confirmYesBtn" class="btn-primary" style="flex:1; background:#007aff;">确 定</button>
+            <button id="confirmNoBtn" class="btn-danger" style="flex:1; background:#ff3b30;">取 消</button>
         </div>
     </div>
+</div>
 
-    <!-- 自定义双按钮确认弹窗 -->
-    <div id="customConfirmOverlay" class="custom-alert-overlay" style="display:none;">
-        <div class="custom-alert-box" style="width: 280px;">
-            <div class="custom-alert-icon" id="confirmIcon">❓</div>
-            <p id="confirmMsg" class="custom-alert-msg"></p>
-            <div style="display: flex; gap: 12px; margin-top: 8px;">
-                <button id="confirmYesBtn" class="btn-primary" style="flex:1; background:#007aff;">确 定</button>
-                <button id="confirmNoBtn" class="btn-danger" style="flex:1; background:#ff3b30;">取 消</button>
-            </div>
-        </div>
-    </div>
+<!-- 图片放大模态框 -->
+<div id="imageModal" class="image-modal">
+    <span class="image-modal-close">&times;</span>
+    <img class="image-modal-content" id="modalImage">
+</div>
 
-    <!-- 图片放大模态框 -->
-    <div id="imageModal" class="image-modal">
-        <span class="image-modal-close">&times;</span>
-        <img class="image-modal-content" id="modalImage">
-    </div>
-
-    <script src="app.js"></script>
-    <script>
-        // 确保全局函数存在（以防 app.js 尚未覆盖）
-        window.showNiceAlert = window.showNiceAlert || function (msg, icon, cb) { alert(msg); if (cb) cb(); };
-        window.showConfirm = window.showConfirm || function (msg, onYes, onNo) { if (confirm(msg)) onYes(); else if (onNo) onNo(); };
-
-        // 设施面板折叠
-        document.getElementById('facilityPanelHeader').addEventListener('click', () => {
-            const list = document.getElementById('facilityList');
-            const icon = document.getElementById('facilityToggleIcon');
-            const panel = document.getElementById('facilityPanel');
-            if (list.style.display === 'none' || !list.style.display) {
-                list.style.display = 'block';
-                icon.textContent = '▲';
-                panel.classList.add('expanded');   // 添加展开样式
-            } else {
-                list.style.display = 'none';
-                icon.textContent = '▼';
-                panel.classList.remove('expanded');
+<script src="app.js">
+</script>
+<script>
+    // 确保全局函数存在（以防 app.js 尚未覆盖）
+    window.showNiceAlert = window.showNiceAlert || function(msg, icon, cb) {
+        if (icon && typeof icon === 'string' && icon.length <= 4) {
+            const emojiMap = {
+                '💬': 'icon-info',
+                '✅': 'icon-info',
+                '❌': 'icon-slash',
+                '⚠️': 'icon-alert-triangle',
+                'ℹ️': 'icon-info',
+                '❤️': 'icon-info',
+                '🎉': 'icon-info',
+            };
+            const mappedId = emojiMap[icon] || 'icon-info';
+            const iconEl = document.getElementById('customAlertIcon');
+            if (iconEl) {
+                iconEl.innerHTML =
+                `<svg class="icon-svg lg" aria-hidden="true"><use href="#${mappedId}"/></svg>`;
             }
-        });
-        // 偏好弹出
-        document.getElementById('showPrefBtn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            const dropdown = document.getElementById('prefDropdown');
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-        });
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#prefDropdown') && !e.target.closest('#showPrefBtn')) {
-                document.getElementById('prefDropdown').style.display = 'none';
+        }
+        alert(msg);
+        if (cb) cb();
+    };
+    window.showConfirm = window.showConfirm || function(msg, onYes, onNo) {
+        if (confirm(msg)) onYes();
+        else if (onNo) onNo();
+    };
+
+    // 设施面板折叠
+    document.getElementById('facilityPanelHeader').addEventListener('click', () => {
+        const list = document.getElementById('facilityList');
+        const icon = document.getElementById('facilityToggleIcon');
+        const panel = document.getElementById('facilityPanel');
+        if (list.style.display === 'none' || !list.style.display) {
+            list.style.display = 'block';
+            icon.textContent = '▲';
+            panel.classList.add('expanded');
+        } else {
+            list.style.display = 'none';
+            icon.textContent = '▼';
+            panel.classList.remove('expanded');
+        }
+    });
+    // 偏好弹出
+    document.getElementById('showPrefBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const dropdown = document.getElementById('prefDropdown');
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#prefDropdown') && !e.target.closest('#showPrefBtn')) {
+            document.getElementById('prefDropdown').style.display = 'none';
+        }
+    });
+
+    // 运行时动态替换 app.js 可能插入的 emoji
+    (function() {
+        const emojiToIconMap = {
+            '🔍': 'icon-search',
+            '🗑️': 'icon-trash',
+            '♿': 'icon-wheelchair',
+            '📍': 'icon-map-pin',
+            '⚙️': 'icon-settings',
+            '🎤': 'icon-mic',
+            '🆘': 'icon-alert-triangle',
+            '📝': 'icon-edit',
+            '🌗': 'icon-contrast',
+            '👤': 'icon-user',
+            '📊': 'icon-bar-chart',
+            '🏢': 'icon-building',
+            '👋': 'icon-info',
+            '📖': 'icon-book',
+            '🍜': 'icon-utensils',
+            '🛗': 'icon-elevator',
+            '🚪': 'icon-door',
+            '💬': 'icon-info',
+            '❓': 'icon-help-circle',
+            '🚨': 'icon-alert-triangle',
+            '📈': 'icon-trending',
+            '🚫': 'icon-slash',
+            'ℹ️': 'icon-info',
+            '⚠️': 'icon-alert-triangle',
+            '✅': 'icon-info',
+            '❌': 'icon-slash',
+        };
+
+        function replaceEmojiInNode(node) {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+                let text = node.textContent;
+                let changed = false;
+                for (const [emoji, iconId] of Object.entries(emojiToIconMap)) {
+                    if (text.includes(emoji)) {
+                        changed = true;
+                        break;
+                    }
+                }
+                if (changed && node.parentElement) {
+                    const parent = node.parentElement;
+                    const fragment = document.createDocumentFragment();
+                    let remaining = node.textContent;
+                    for (const [emoji, iconId] of Object.entries(emojiToIconMap)) {
+                        if (remaining.includes(emoji)) {
+                            const parts = remaining.split(emoji);
+                            for (let i = 0; i < parts.length; i++) {
+                                if (parts[i]) {
+                                    fragment.appendChild(document.createTextNode(parts[i]));
+                                }
+                                if (i < parts.length - 1) {
+                                    const svg = document.createElementNS(
+                                        'http://www.w3.org/2000/svg', 'svg');
+                                    svg.setAttribute('class', 'icon-svg');
+                                    svg.setAttribute('aria-hidden', 'true');
+                                    svg.innerHTML =
+                                        `<use href="#${iconId}"/>`;
+                                    fragment.appendChild(svg);
+                                }
+                            }
+                            parent.replaceChild(fragment, node);
+                            return;
+                        }
+                    }
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE && node.childNodes) {
+                if (node.querySelector('use')) return;
+                const children = Array.from(node.childNodes);
+                children.forEach(child => replaceEmojiInNode(child));
             }
+        }
+
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        setTimeout(() => replaceEmojiInNode(node), 50);
+                    }
+                });
+            });
         });
-    </script>
+
+        document.addEventListener('DOMContentLoaded', () => {
+            replaceEmojiInNode(document.body);
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                characterData: false,
+            });
+        });
+
+        if (document.readyState === 'interactive' || document.readyState ===
+            'complete') {
+            replaceEmojiInNode(document.body);
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                characterData: false,
+            });
+        }
+    })();
+</script>
 </body>
 
 </html>

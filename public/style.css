@@ -831,3 +831,16 @@ body.high-contrast .route-marker-label {
     border: none;
     text-shadow: 0 0 4px #000, 0 0 2px #000;
 }
+/* 禁用按钮通用样式 */
+.btn-disabled {
+    pointer-events: none !important;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 高对比模式下保持禁用样式可见 */
+body.high-contrast .btn-disabled {
+    opacity: 0.4;
+    color: #666 !important;
+    border-color: #666 !important;
+}
