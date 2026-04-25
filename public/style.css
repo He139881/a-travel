@@ -381,9 +381,98 @@ form .btn-primary {
 }
 
 /* ========== 移动端适配 ========== */
+/* ========== 移动端适配 ========== */
 @media (max-width: 600px) {
-    .left-panel { width: calc(100% - 20px); left: 10px; }
-    .facility-panel { width: 200px; top: 70px; }
+    /* 左侧面板整体 */
+    .left-panel {
+        width: calc(100% - 16px);
+        left: 8px;
+        top: 70px;
+        max-height: 40vh;         /* 不超过屏幕40%高度，方便看到地图 */
+        overflow-y: auto;
+    }
+
+    /* 搜索卡片内部紧凑 */
+    .glass-card {
+        padding: 10px;
+    }
+    .input-row input {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+    .btn-primary, .btn-danger {
+        padding: 8px 0;
+        font-size: 14px;
+    }
+    .options-row {
+        flex-wrap: wrap;
+    }
+
+    /* 功能按钮改为两列，按钮更小巧 */
+    .action-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+    .action-btn {
+        padding: 8px 2px;
+        font-size: 12px;
+    }
+
+    /* 设施面板默认只显示标题，点击才展开列表（通过 JS 切换） */
+    .facility-panel {
+        width: auto;
+        max-width: 160px;
+        top: 70px;
+        right: 4px;
+        max-height: 30px;         /* 收缩状态只显示标题 */
+        overflow: hidden;
+        transition: max-height 0.3s;
+    }
+    .facility-panel.expanded {
+        max-height: 250px;
+    }
+    .panel-header {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    #facilityList {
+        max-height: 150px;
+    }
+
+    /* 状态栏缩小 */
+    #status {
+        top: 4px;
+        left: 8px;
+        right: 8px;
+        padding: 4px 12px;
+        font-size: 12px;
+    }
+    #status .status-actions button {
+        font-size: 16px;
+        padding: 0 2px;
+    }
+
+    /* 语音提示面板 */
+    .voice-hint {
+        left: 4px;
+        right: 4px;
+        bottom: 80px;
+        padding: 10px;
+        font-size: 12px;
+    }
+    .voice-cmd {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    /* 数据看板模态框 */
+    .stats-modal-content {
+        width: 95%;
+        max-width: 95%;
+    }
+    .stats-card-grid {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 /* 优化上报表单 */

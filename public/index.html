@@ -48,7 +48,7 @@
             </div>
             <div class="options-row">
                 <label class="wheelchair-label">
-                    <input type="checkbox" id="wheelchairModeSearch" checked> ♿ 轮椅优先
+                    <input type="checkbox" id="wheelchairModeSearch" checked> ♿ 无障碍优先
                 </label>
                 <button id="useMyLocationBtn" class="text-btn">📍 我的位置</button>
             </div>
@@ -215,11 +215,11 @@
             if (list.style.display === 'none' || !list.style.display) {
                 list.style.display = 'block';
                 icon.textContent = '▲';
-                panel.classList.remove('compact');
+                panel.classList.add('expanded');   // 添加展开样式
             } else {
                 list.style.display = 'none';
                 icon.textContent = '▼';
-                panel.classList.add('compact');
+                panel.classList.remove('expanded');
             }
         });
         // 偏好弹出

@@ -184,7 +184,7 @@ function drawRoadSegments() {
         }).addTo(map);
 
         let popupText = `<b>${seg.segment_type || '道路'}</b><br>`;
-        popupText += `轮椅通行: ${seg.wheelchair_passable}<br>`;
+        popupText += `无障碍通行: ${seg.wheelchair_passable}<br>`;
         if (seg.notes) popupText += `备注: ${seg.notes}`;
         polyline.bindPopup(popupText);
         roadLayers.push(polyline);
@@ -317,7 +317,7 @@ function buildRoadGraph(wheelchairMode = true) {
 
     nodes.forEach((coord, key) => g.setNode(key, coord));
 
-    // 添加边（根据轮椅模式过滤）
+    // 添加边（根据无障碍模式过滤）
     roadSegments.forEach(seg => {
         const key1 = `${seg.start_lat.toFixed(6)},${seg.start_lng.toFixed(6)}`;
         const key2 = `${seg.end_lat.toFixed(6)},${seg.end_lng.toFixed(6)}`;
@@ -327,7 +327,7 @@ function buildRoadGraph(wheelchairMode = true) {
             { lat: seg.end_lat, lng: seg.end_lng }
         ) * 1000;
 
-        // 轮椅模式过滤和权重调整
+        // 无障碍模式过滤和权重调整
         if (wheelchairMode) {
             const passable = seg.wheelchair_passable;
             const segType = seg.segment_type;
@@ -846,14 +846,14 @@ async function replanRouteAfterDrag(newStartCoord, newEndCoord, startName, endNa
             currentRouteLayer = L.geoJSON(route.geometry, { style: { color: '#007aff', weight: 6, opacity: 0.8 } }).addTo(map);
             const distance = (route.distance / 1000).toFixed(2);
             const duration = Math.round(route.duration / 60);
-            const modeText = wheelchairMode ? '轮椅优先路线' : '标准路线';
+            const modeText = wheelchairMode ? '无障碍优先路线' : '标准路线';
             let baseMsg = `从${startName}到${endName}，规划成功（${modeText}），全程约 ${distance} 公里，预计步行 ${duration} 分钟。`;
-            if (wheelchairMode) baseMsg = `⚠️ 轮椅路线不可用，已切换到标准路线。` + baseMsg.replace('轮椅优先路线', '标准路线');
+            if (wheelchairMode) baseMsg = `无障碍路线不存在，已切换到标准路线。` + baseMsg.replace('无障碍优先路线', '标准路线');
             statusEl.innerText = baseMsg; speak(baseMsg); vibrate(3);
             const warnings = checkObstaclesAlongRoute(route.geometry, wheelchairMode);
             if (warnings.length > 0) {
                 const types = [...new Set(warnings.map(o => o.type))];
-                const warningMsg = wheelchairMode ? `⚠️ 轮椅优先路线提示：沿途发现 ${warnings.length} 处障碍物（${types.join('、')}），建议重新规划路径。` : `📢 标准路线提示：沿途存在 ${warnings.length} 处障碍物，步行时请留意。`;
+                const warningMsg = wheelchairMode ? `无障碍路线提示：沿途发现 ${warnings.length} 处障碍物（${types.join('、')}），建议重新规划路径。` : `📢 标准路线提示：沿途存在 ${warnings.length} 处障碍物，步行时请留意。`;
                 speak(warningMsg, 'urgent');
                 if (wheelchairMode) vibrate(4);
                 highlightNearbyObstacles(warnings);
@@ -892,7 +892,7 @@ async function planRealRoute() {
     const statusEl = document.getElementById('statusText');
     const wheelchairMode = document.getElementById('wheelchairModeSearch').checked;
 
-    console.log('♿ 轮椅模式:', wheelchairMode);
+    console.log('无障碍模式:', wheelchairMode);
     console.log('roadSegments 长度:', roadSegments?.length);
 
     // 输入验证
@@ -1057,7 +1057,7 @@ async function tryCustomRoute(startCoord, endCoord, startName, endName, statusEl
         const distanceKm = (totalDist / 1000).toFixed(2);
         const durationMin = Math.round(totalDist / 1.2 / 60);
 
-        let fullMsg = `♿ 轮椅优先路线规划成功，从 ${finalStartName} 到 ${finalEndName}，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
+        let fullMsg = `无障碍路线规划成功，从 ${finalStartName} 到 ${finalEndName}，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
 
         const rampsOnRoute = checkRampsAlongRoute(geojson);
         if (rampsOnRoute && rampsOnRoute.length > 0) {
@@ -1089,7 +1089,7 @@ async function tryCustomRoute(startCoord, endCoord, startName, endName, statusEl
         return true;
     } else {
         console.warn('❌ 自定义路网未找到可行路径');
-        const fallbackMsg = '⚠️ 轮椅路线规划失败，已切换普通步行路线，请注意沿途障碍。';
+        const fallbackMsg = '无障碍路线规划失败，已切换普通步行路线，请注意沿途障碍。';
         statusEl.innerText = fallbackMsg;
 
         setTimeout(() => {
@@ -1190,11 +1190,11 @@ async function fallbackToAMap(startCoord, endCoord, startName, endName, wheelcha
 
         const distance = (route.distance / 1000).toFixed(2);
         const duration = Math.round(route.duration / 60);
-        const modeText = wheelchairMode ? '轮椅优先路线' : '标准路线';
+        const modeText = wheelchairMode ? '无障碍路线' : '标准路线';
 
         let baseMsg = `从${startName}到${endName}，规划成功（${modeText}），全程约 ${distance} 公里，预计步行 ${duration} 分钟。`;
         if (wheelchairMode) {
-            baseMsg = `⚠️ 轮椅路线不可用，已为您切换到标准路线。` + baseMsg.replace('轮椅优先路线', '标准路线');
+            baseMsg = `⚠️无障碍路线不可用，已为您切换到标准路线。` + baseMsg.replace('无障碍路线', '标准路线');
         }
 
         statusEl.innerText = baseMsg;
@@ -1207,7 +1207,7 @@ async function fallbackToAMap(startCoord, endCoord, startName, endName, wheelcha
         if (warnings.length > 0) {
             const types = [...new Set(warnings.map(o => o.type))];
             const warningMsg = wheelchairMode
-                ? `⚠️ 轮椅优先路线提示：沿途发现 ${warnings.length} 处障碍物（${types.join('、')}），建议重新规划路径。`
+                ? `⚠️ 无障碍路线提示：沿途发现 ${warnings.length} 处障碍物（${types.join('、')}），建议重新规划路径。`
                 : `📢 标准路线提示：沿途存在 ${warnings.length} 处障碍物，步行时请留意。`;
             speak(warningMsg, 'urgent');
             if (wheelchairMode) vibrate(4);
@@ -1471,7 +1471,7 @@ async function executeNavigate(destination) {
                     const distanceKm = (totalDist / 1000).toFixed(1);
                     const durationMin = Math.round(totalDist / 1.2 / 60);
 
-                    let msg = `♿ 轮椅优先路线规划成功，从 ${finalStartName} 到 ${finalEndName}，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
+                    let msg = `无障碍路线规划成功，从 ${finalStartName} 到 ${finalEndName}，全程约 ${distanceKm} 公里，预计 ${durationMin} 分钟。`;
 
                     const rampsOnRoute = checkRampsAlongRoute(geojson);
                     if (rampsOnRoute && rampsOnRoute.length > 0) {
@@ -1521,11 +1521,11 @@ async function executeNavigate(destination) {
 
         const distanceKm = (route.distance / 1000).toFixed(1);
         const durationMin = Math.round(route.duration / 60);
-        const modeText = wheelchairMode ? '轮椅优先路线' : '标准路线';
+        const modeText = wheelchairMode ? '无障碍优先路线' : '标准路线';
 
         let msg = `从 ${startName} 到 ${endName}，路线规划成功（${modeText}），全程约 ${distanceKm} 公里，预计步行 ${durationMin} 分钟。`;
         if (wheelchairMode) {
-            msg = `⚠️ 轮椅路线不可用，已切换标准路线。` + msg.replace('轮椅优先路线', '标准路线');
+            msg = `⚠️ 无障碍路线不可用，已切换标准路线。` + msg.replace('无障碍优先路线', '标准路线');
         }
 
         document.getElementById('statusText').innerText = msg;
@@ -1542,7 +1542,7 @@ async function executeNavigate(destination) {
             if (wheelchairMode) {
                 hasStairs = types.includes('台阶');
                 if (hasStairs) {
-                    warningMsg = ` 无障碍优先路线：沿途发现台阶障碍，轮椅无法通行！请务必更换目的地或手动选择其他路径。`;
+                    warningMsg = ` 无障碍优先路线：沿途发现台阶障碍，无障碍路线不存在！请务必更换目的地或手动选择其他路径。`;
                     document.getElementById('statusText').innerHTML = `<span style="color:red;">🚫 ${warningMsg}</span>`;
                 } else {
                     warningMsg = `无障碍优先路线：沿途发现 ${warnings.length} 处障碍物（${types.join('、')}），请注意绕行。`;
@@ -2041,34 +2041,49 @@ window.onload = async () => {
             maxZoom: 19
         }).addTo(map);
     }
-    // 页面加载后自动设置起点和终点并规划路线
-    const startInput = document.getElementById('startAddress');
-    const endInput = document.getElementById('endAddress');
-    if (!startInput.value.trim()) {
-        try {
-            await useMyLocationAsStart();
-        } catch (e) { /* 定位失败使用默认 */ }
-        if (!startInput.value.trim()) {
-            startInput.value = '西门'; // 默认起点
-            const poi = poiList.find(p => p.name === '西门');
-            if (poi) {
-                startInput.dataset.location = `${poi.lng},${poi.lat}`;
-                startInput.dataset.name = poi.name;
-            }
-        }
-    }
-    if (!endInput.value.trim()) {
-        endInput.value = '图书馆';
-        const poi = poiList.find(p => p.name === '图书馆');
-        if (poi) {
-            endInput.dataset.location = `${poi.lng},${poi.lat}`;
-            endInput.dataset.name = poi.name;
-        }
-    }
-    // 如果起点终点都已获得坐标，自动规划路线
+  // ========== 自动设置起点 ==========
+const startInput = document.getElementById('startAddress');
+const endInput = document.getElementById('endAddress');
+if (!startInput.value.trim()) {
+    try {
+        await useMyLocationAsStart();
+    } catch (e) { /* 定位失败则留空，稍后可手动输入 */ }
+}
+// 不再自动设置终点
+
+// ========== 预置可拖动的起点/终点旗子（地图中心） ==========
+const center = map.getCenter();
+if (startMarker) map.removeLayer(startMarker);
+if (endMarker) map.removeLayer(endMarker);
+
+startMarker = createDraggableMarker([center.lat, center.lng], 'start', '起点');
+endMarker = createDraggableMarker([center.lat, center.lng], 'end', '终点');
+
+// 拖动起点后更新输入框并尝试规划
+startMarker.on('dragend', async function (e) {
+    const newPos = e.target.getLatLng();
+    const newCoord = { lat: newPos.lat, lng: newPos.lng };
+    const addr = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
+    startInput.value = addr;
+    startInput.dataset.location = `${newPos.lng},${newPos.lat}`;
+    startInput.dataset.name = addr;
     if (startInput.dataset.location && endInput.dataset.location) {
         await planRealRoute();
     }
+});
+
+// 拖动终点后更新输入框并尝试规划
+endMarker.on('dragend', async function (e) {
+    const newPos = e.target.getLatLng();
+    const newCoord = { lat: newPos.lat, lng: newPos.lng };
+    const addr = await reverseGeocode(newPos.lat, newPos.lng) || `${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)}`;
+    endInput.value = addr;
+    endInput.dataset.location = `${newPos.lng},${newPos.lat}`;
+    endInput.dataset.name = addr;
+    if (startInput.dataset.location && endInput.dataset.location) {
+        await planRealRoute();
+    }
+});
 
 };
 
