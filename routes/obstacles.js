@@ -73,58 +73,95 @@ router.put('/:id', (req, res) => {
 
 router.put('/:id/link-road', authenticate, requireAdmin, (req, res) => {
     const obstacleId = req.params.id;
+    const { passable } = req.body;  // 新增：前端传来的可通行状态 true=可通行, false=不可通行
+
+    console.log('收到请求:', { obstacleId, passable, body: req.body });  // ← 添加这行
 
     db.get('SELECT lat, lng, type, road_segment_id FROM obstacles WHERE id = ?', [obstacleId], (err, obs) => {
         if (err || !obs) return res.status(404).json({ error: '障碍物不存在' });
+
+        // 确定 wheelchair_passable 的值
+        // 注意：数据库中 'yes' 表示可通行，'no' 表示不可通行
+        let newWheelchairStatus;
+        let actionMessage;
+
+        if (passable === true) {
+            newWheelchairStatus = 'yes';
+            actionMessage = '可通行';
+        } else if (passable === false) {
+            newWheelchairStatus = 'no';
+            actionMessage = '不可通行';
+        } else {
+            // 兼容旧调用（不传 passable 时默认为不可通行）
+            newWheelchairStatus = 'no';
+            actionMessage = '不可通行';
+        }
 
         // ===== 如果用户上报时已经指定了路段ID，直接标记该路段 =====
         if (obs.road_segment_id) {
             db.run('UPDATE obstacles SET status = "已关联路段" WHERE id = ?', [obstacleId], (err) => {
                 if (err) return res.status(500).json({ error: err.message });
-                db.run('UPDATE road_segments SET wheelchair_passable = ? WHERE id = ?', ['否', obs.road_segment_id], (err2) => {
-                    if (err2) return res.status(500).json({ error: err2.message });
-                    res.json({
-                        success: true,
-                        road_segment_id: obs.road_segment_id,
-                        message: '已将该路段标记为不可通行'
-                    });
-                });
-            });
-            return;
-        }
-    // 2. 计算最近路段（简单欧氏距离，可优化为实际投影距离）
-    db.all('SELECT * FROM road_segments', (err, segments) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!segments.length) return res.status(400).json({ error: '无可用路段数据' });
-        
-        let minDist = Infinity, nearestSeg = null;
-        segments.forEach(seg => {
-            // 计算到线段中点的距离（简化为起点距离，实际应计算点到线段最短距离）
-            const dist = Math.hypot(obs.lat - seg.start_lat, obs.lng - seg.start_lng); // 可改进
-            if (dist < minDist) { minDist = dist; nearestSeg = seg; }
-        });
-        
-        if (!nearestSeg) return res.status(400).json({ error: '未找到合适路段' });
-        
-        // 3. 更新障碍物关联
-        db.run('UPDATE obstacles SET road_segment_id = ?, status = "已关联路段" WHERE id = ?', 
-            [nearestSeg.id, obstacleId], (err2) => {
-                if (err2) return res.status(500).json({ error: err2.message });
-                
-                // 4. 将对应路段标记为不可通行（可根据障碍类型进一步细分）
-                const newWheelchair = '否';
-                db.run('UPDATE road_segments SET wheelchair_passable = ? WHERE id = ?',
-                    [newWheelchair, nearestSeg.id], (err3) => {
-                        if (err3) return res.status(500).json({ error: err3.message });
-                        res.json({ 
-                            success: true, 
-                            road_segment_id: nearestSeg.id,
-                            message: '已将该路段标记为不可通行' 
+                db.run('UPDATE road_segments SET wheelchair_passable = ? WHERE id = ?', 
+                    [newWheelchairStatus, obs.road_segment_id], (err2) => {
+                        if (err2) return res.status(500).json({ error: err2.message });
+                        res.json({
+                            success: true,
+                            road_segment_id: obs.road_segment_id,
+                            message: `已将该路段标记为${actionMessage}`
                         });
                     });
             });
+            return;
+        }
+
+        // 2. 计算最近路段（简单欧氏距离，可优化为实际投影距离）
+        db.all('SELECT * FROM road_segments', (err, segments) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!segments.length) return res.status(400).json({ error: '无可用路段数据' });
+
+            let minDist = Infinity, nearestSeg = null;
+            segments.forEach(seg => {
+                // 计算到线段中点的距离（简化为起点距离，实际应计算点到线段最短距离）
+                const dist = Math.hypot(obs.lat - seg.start_lat, obs.lng - seg.start_lng);
+                if (dist < minDist) { minDist = dist; nearestSeg = seg; }
+            });
+
+            if (!nearestSeg) return res.status(400).json({ error: '未找到合适路段' });
+
+            // 3. 更新障碍物关联
+            db.run('UPDATE obstacles SET road_segment_id = ?, status = "已关联路段" WHERE id = ?',
+                [nearestSeg.id, obstacleId], (err2) => {
+                    if (err2) return res.status(500).json({ error: err2.message });
+
+                    // 4. 更新路段状态（根据前端传入的 passable 决定）
+                    db.run('UPDATE road_segments SET wheelchair_passable = ? WHERE id = ?',
+                        [newWheelchairStatus, nearestSeg.id], (err3) => {
+                            if (err3) return res.status(500).json({ error: err3.message });
+                            res.json({
+                                success: true,
+                                road_segment_id: nearestSeg.id,
+                                message: `已将该路段标记为${actionMessage}`
+                            });
+                        });
+                });
+        });
     });
-  });
+});
+
+// 删除障碍物（管理员权限）
+router.delete('/:id', authenticate, requireAdmin, (req, res) => {
+    const { id } = req.params;
+    
+    db.run('DELETE FROM obstacles WHERE id = ?', [id], function(err) {
+        if (err) {
+            console.error('删除障碍物失败:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: '障碍物不存在' });
+        }
+        res.json({ success: true, message: '障碍物已删除' });
+    });
 });
 
 module.exports = router;

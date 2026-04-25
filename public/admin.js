@@ -327,7 +327,8 @@ function renderTable(filterText = '', statusFilter = 'all') {
             <td>${obs.report_time || ''}</td>
             <td>${obs.photo ? `<img src="${obs.photo}" class="photo-thumb" onclick="showPhoto('${obs.photo}')">` : '无'} ${obs.resolved_photo ? `<img src="${obs.resolved_photo}" class="photo-thumb" onclick="showPhoto('${obs.resolved_photo}')" title="处理后">` : ''}</td>
            <td>
-    ${obs.status !== '已完成' ? `<button class="action-btn" onclick="linkObstacleToRoad(${obs.id})">🔗 标记路段</button>` : ''}
+    ${obs.status !== '已完成' ? `<button class="action-btn" onclick="linkObstacleToRoad(${obs.id}, 'blocked')">🚫 标记不可通行</button>` : ''}
+${obs.status !== '已完成' ? `<button class="action-btn" onclick="linkObstacleToRoad(${obs.id}, 'passable')">✅ 标记可通行</button>` : ''}
     ${obs.status === '未处理' ? `<button class="action-btn" onclick="openClaimModal(${obs.id})">🤝 认领</button>` : ''}
     ${obs.status === '处理中' && obs.claimed_by ? `<button class="action-btn" onclick="openResolveModal(${obs.id})">✅ 上传完成</button>` : ''}
     <button class="action-btn" onclick="changeStatus(${obs.id}, '${obs.status === '未处理' ? '处理中' : (obs.status === '处理中' ? '已完成' : '未处理')}')">✏️ 状态</button>
@@ -454,28 +455,42 @@ async function changeStatus(id, newStatus) {
     renderCharts();
 }
 
-// 管理员确认障碍物，关联最近路段并标记为不可通行
-async function linkObstacleToRoad(id) {
-    showConfirm(
-        '确认将该障碍物关联到最近路段，并标记该路段为不可通行？此操作会影响路线规划。',
-        async () => {
-            try {
-                const res = await fetch(`${API_BASE}/obstacles/${id}/link-road`, {
-                    method: 'PUT',
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    showNiceAlert(data.message, '✅');
-                    await loadObstaclesFromServer();
-                } else {
-                    showNiceAlert('操作失败：' + (data.error || '未知错误'), '❌');
+async function linkObstacleToRoad(id, action) {
+    const isBlocked = action === 'blocked';
+    const confirmMsg = isBlocked 
+        ? '确认将该障碍物关联到最近路段，并标记该路段为不可通行？此操作会影响路线规划。'
+        : '确认将该路段标记为可通行，并移除障碍物标记？';
+    
+    showConfirm(confirmMsg, async () => {
+        try {
+            const res = await fetch(`${API_BASE}/obstacles/${id}/link-road`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify({ passable: !isBlocked })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showNiceAlert(data.message, '✅');
+                
+                // 如果是标记可通行，删除该障碍物（移除三角形标志）
+                if (!isBlocked) {
+                    const deleteRes = await fetch(`${API_BASE}/obstacles/${id}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
+                    if (deleteRes.ok) {
+                        showNiceAlert('已移除障碍物标记', '🗑️');
+                    }
                 }
-            } catch (e) {
-                showNiceAlert('网络错误，请稍后重试', '❌');
+                
+                await loadObstaclesFromServer();
+            } else {
+                showNiceAlert('操作失败：' + (data.error || '未知错误'), '❌');
             }
+        } catch (e) {
+            showNiceAlert('网络错误，请稍后重试', '❌');
         }
-    );
+    });
 }
 
 
