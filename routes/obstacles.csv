@@ -1,0 +1,2 @@
+id,user_id,lat,lng,type,description,status,report_time,photo,claimed_by,claim_time,resolved_photo,resolved_time,created_at,road_segment_id
+1777102656401,1,26.883043,112.514232,坡道损坏,发现障碍物,已关联路段,2026-04-25,,,,,,2026-04-25 07:37:36,10701

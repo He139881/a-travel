@@ -156,20 +156,24 @@ function drawRoadSegments() {
         let color = '#888888';
         let weight = 4;
 
-        // 优先按 segment_type 判断颜色（坡道优先显示黄色）
-        if (seg.segment_type === '坡道') {
-            color = '#ffcc00';  // 黄色
+        // 优先判断不可通行状态（任何以“否”开头的值都变红）
+        const passable = seg.wheelchair_passable;
+        if (seg.id === 10701) console.log('路段10701 passable:', passable, 'color before:', color);
+        if (passable && passable.startsWith('否')) {
+            color = '#ff3b30';  // 不可通行：红色
+        }
+        // 然后按 segment_type 细分
+        else if (seg.segment_type === '台阶') {
+            color = '#ff3b30';
         } else if (seg.segment_type === '坡道台阶混合') {
-            color = '#ff9500';  // 橙色
+            color = '#ff9500';
             weight = 5;
-        } else if (seg.segment_type === '台阶') {
-            color = '#ff3b30';  // 红色
-        } else if (seg.wheelchair_passable === '是') {
-            color = '#34c759';  // 绿色
-        } else if (seg.wheelchair_passable === '否' || seg.wheelchair_passable === '否（有台阶）') {
-            color = '#ff3b30';  // 红色
-        } else if (seg.wheelchair_passable === '坡道陡，仅电动轮椅可通行') {
-            color = '#ff9500';  // 橙色
+        } else if (seg.segment_type === '坡道') {
+            color = '#ffcc00';
+        } else if (passable === '是') {
+            color = '#34c759';
+        } else if (passable === '坡道陡，仅电动轮椅可通行') {
+            color = '#ff9500';
         }
 
         const latlngs = [
@@ -183,6 +187,25 @@ function drawRoadSegments() {
             className: 'custom-road'
         }).addTo(map);
 
+        polyline.on('click', function(e) {
+    if (!isLoggedIn()) {
+        showConfirm('上报障碍物需要登录，是否前往登录？', () => {
+            window.location.href = 'login.html';
+        });
+        return;
+    }
+    // 打开上报模态框
+    document.getElementById('reportModal').style.display = 'flex';
+    // 预填坐标（路段中点），但实际标记时用路段ID为准
+    const midLat = (seg.start_lat + seg.end_lat) / 2;
+    const midLng = (seg.start_lng + seg.end_lng) / 2;
+    document.getElementById('obstacleLat').value = midLat.toFixed(6);
+    document.getElementById('obstacleLng').value = midLng.toFixed(6);
+    document.getElementById('reportLocationCoords').innerText = `路段ID: ${seg.id}`;
+    // 存储路段ID，提交时使用
+    document.getElementById('reportModal').dataset.roadSegmentId = seg.id;
+});
+if (seg.id === 10701) console.log('最终颜色:', color);
         let popupText = `<b>${seg.segment_type || '道路'}</b><br>`;
         popupText += `无障碍通行: ${seg.wheelchair_passable}<br>`;
         if (seg.notes) popupText += `备注: ${seg.notes}`;
@@ -1989,15 +2012,27 @@ window.onload = async () => {
             if (file) { const reader = new FileReader(); reader.onload = (ev) => { document.getElementById('photoPreview').src = ev.target.result; document.getElementById('photoPreview').style.display = 'block'; }; reader.readAsDataURL(file); }
         });
     }
-    document.getElementById('reportForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const type = document.getElementById('obstacleType').value;
-        const desc = document.getElementById('obstacleDesc').value;
-        const photoData = document.getElementById('photoPreview').src;
-        const lat = parseFloat(document.getElementById('obstacleLat').value);
-        const lng = parseFloat(document.getElementById('obstacleLng').value);
-        const newObstacle = { id: Date.now(), lat, lng, type, description: desc, status: "未处理", report_time: new Date().toISOString().slice(0, 10), photo: photoData || null };
-        const success = await addObstacleToServer(newObstacle);
+document.getElementById('reportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = document.getElementById('obstacleType').value;
+    const desc = document.getElementById('obstacleDesc').value;
+    const photoData = document.getElementById('photoPreview').src;
+    const lat = parseFloat(document.getElementById('obstacleLat').value);
+    const lng = parseFloat(document.getElementById('obstacleLng').value);
+    const roadSegmentId = document.getElementById('reportModal').dataset.roadSegmentId || null;
+
+    const newObstacle = {
+        id: Date.now(),
+        lat,
+        lng,
+        type,
+        description: desc,
+        status: "未处理",
+        report_time: new Date().toISOString().slice(0, 10),
+        photo: photoData || null,
+        road_segment_id: roadSegmentId ? parseInt(roadSegmentId) : null   // 关键新增
+    };
+    const success = await addObstacleToServer(newObstacle);
         if (success) {
             obstacles.push(newObstacle);
             updateObstacleMarkers();
