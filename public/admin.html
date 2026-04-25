@@ -5,52 +5,194 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理员面板 · 社区互助</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Leaflet 地图库（用于热力图） -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- 热力图插件 -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-    <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-    <!-- PDF导出库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        /* 新增 Tab 样式 */
-        .admin-tabs {
+        /* 基础重置与原有样式保持不变，此处只补充新增样式 */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+            background: #f5f7fb;
+            color: #333;
+            line-height: 1.5;
+        }
+        .admin-header {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
             display: flex;
-            padding: 0 20px;
-            gap: 10px;
-            border-bottom: 1px solid #ddd;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .admin-header h1 { font-size: 1.6rem; }
+        .admin-tabs {
             background: white;
             margin: 0 20px;
-            border-radius: 20px 20px 0 0;
+            border-radius: 30px;
+            padding: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
         }
         .tab-btn {
-            padding: 14px 28px;
+            border-radius: 30px;
+            padding: 10px 24px;
             background: none;
             border: none;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 500;
             color: #666;
             cursor: pointer;
-            border-radius: 20px 20px 0 0;
-            transition: all 0.2s;
+            transition: 0.2s;
         }
         .tab-btn.active {
-            color: #007aff;
+            background: #007aff;
+            color: white;
+        }
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 20px;
+        }
+        .stats-cards .card {
             background: white;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            border-radius: 24px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            transition: transform 0.2s;
+        }
+        .stats-cards .card:hover { transform: translateY(-2px); }
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 0 20px 20px;
+        }
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 28px;
+            margin: 20px 20px 20px;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto auto auto;
+            gap: 12px;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .filter-bar input, .filter-bar select, .filter-bar button {
+            height: 44px;
+            padding: 0 16px;
+            border-radius: 24px;
+            border: 1px solid #e2e2e8;
+            background: #f9f9fb;
+            font-size: 14px;
+        }
+        .filter-bar .btn-primary { background: #007aff; color: white; border: none; cursor: pointer; }
+        .filter-bar .btn-secondary { background: #f2f2f7; color: #007aff; border: none; cursor: pointer; }
+        .poi-actions {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .poi-actions button {
+            border-radius: 40px;
             font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.25s;
+            cursor: pointer;
+            border: none;
         }
-        .tab-content {
-            background: #f5f7fa;
-            padding-bottom: 20px;
+        .poi-actions .btn-primary {
+            padding: 8px 20px;
+            font-size: 14px;
+            background: linear-gradient(135deg, #007aff, #0051b3);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,122,255,0.25);
         }
-        .tab-content.hidden {
-            display: none;
+        .poi-actions .btn-secondary {
+            padding: 10px 24px;
+            background: white;
+            color: #007aff;
+            border: 1px solid #e2e2e8;
         }
-        /* 退出登录按钮样式 */
+        .table-container {
+            background: white;
+            border-radius: 24px;
+            margin: 0 20px 20px;
+            overflow-x: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+        th, td {
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        th { background: #f8f9fc; font-weight: 600; color: #2c3e50; }
+        tbody tr:hover { background: #f8f9fc; }
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-block;
+        }
+        .status-未处理 { background: #ffe5e5; color: #ff3b30; }
+        .status-处理中 { background: #fff0e0; color: #ff9500; }
+        .status-已完成 { background: #e5f5e5; color: #34c759; }
+        .photo-thumb {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .table-container .action-btn {
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 500;
+            transition: 0.2s;
+            cursor: pointer;
+            border: none;
+            display: inline-block;
+            min-width: 64px;
+            text-align: center;
+            background: rgba(0,122,255,0.1);
+            color: #007aff;
+            margin: 2px;
+        }
+        .table-container .action-btn:hover { background: #007aff; color: white; }
+        .btn-back {
+            display: inline-block;
+            background: rgba(0,122,255,0.1);
+            color: #007aff;
+            padding: 8px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: 0.2s;
+            margin-right: 10px;
+        }
+        .btn-back:hover { background: #007aff; color: white; }
         .logout-btn {
             background: #ff3b30;
             color: white;
@@ -58,25 +200,169 @@
             padding: 8px 16px;
             border-radius: 30px;
             cursor: pointer;
-            margin-left: 10px;
         }
-        /* POI 表格内操作按钮 */
-        .action-btn {
-            padding: 4px 10px;
-            margin: 2px;
-            border: none;
-            border-radius: 12px;
+        /* 模态框通用 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 32px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 28px;
             cursor: pointer;
-            font-size: 12px;
+            color: #888;
         }
-        .edit-btn {
+        /* 自定义弹窗美化 */
+        .custom-alert-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .custom-alert-box {
+            background: white;
+            border-radius: 32px;
+            width: 280px;
+            padding: 24px 20px 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.2s ease;
+        }
+        .custom-alert-icon { font-size: 48px; margin-bottom: 12px; }
+        .custom-alert-msg { font-size: 16px; margin: 12px 0 20px; line-height: 1.4; }
+        .custom-alert-ok {
             background: #007aff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .hidden { display: none !important; }
+
+        /* 美化表单模态框 */
+        .form-modal .modal-content {
+            max-width: 480px;
+            width: 90%;
+            border-radius: 32px;
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fc 100%);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e2e8;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: 0.2s;
+            background: white;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #007aff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+        }
+        .rating-slider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .rating-slider input {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            background: #e2e2e8;
+            border-radius: 3px;
+            outline: none;
+        }
+        .rating-slider input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #007aff;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        }
+        .rating-value {
+            font-weight: bold;
+            color: #007aff;
+            min-width: 40px;
+            text-align: center;
+            font-size: 16px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 28px;
+        }
+        .btn-primary, .btn-secondary {
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #007aff, #0051b3);
             color: white;
         }
-        .delete-btn {
-            background: #ff3b30;
-            color: white;
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,122,255,0.3);
         }
+        .btn-secondary {
+            background: #f2f2f7;
+            color: #007aff;
+        }
+        .btn-secondary:hover {
+            background: #e5e5ea;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1000px) { .filter-bar { grid-template-columns: repeat(2, 1fr); } .filter-bar input { grid-column: span 2; } }
+        @media (max-width: 700px) { .stats-cards { grid-template-columns: repeat(2, 1fr); } .charts-container { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { .filter-bar { grid-template-columns: 1fr; } .poi-actions { flex-direction: column; } .admin-tabs { justify-content: center; } }
     </style>
 </head>
 <body>
@@ -84,13 +370,11 @@
         <h1>🚧 无障碍社区互助后台</h1>
         <div>
             <span id="adminNameDisplay" style="margin-right: 15px; color: #666;"></span>
-            <button id="requestNotifyBtn" class="btn-secondary">🔔 开启通知</button>
             <a href="index.html" class="btn-back">← 返回用户端</a>
             <button id="logoutBtn" class="logout-btn">🚪 退出登录</button>
         </div>
     </div>
 
-    <!-- Tab 切换栏 -->
     <div class="admin-tabs">
         <button class="tab-btn active" data-tab="obstacles">🚧 障碍物管理</button>
         <button class="tab-btn" data-tab="poi">🏢 POI 管理</button>
@@ -99,27 +383,20 @@
 
     <!-- 障碍物管理 Tab -->
     <div id="obstaclesTab" class="tab-content">
-        <!-- 统计卡片 -->
         <div class="stats-cards">
             <div class="card"><h3>总上报</h3><div id="totalCount">0</div></div>
             <div class="card"><h3>待处理</h3><div id="pendingCount">0</div></div>
             <div class="card"><h3>处理中</h3><div id="processingCount">0</div></div>
             <div class="card"><h3>已完成</h3><div id="resolvedCount">0</div></div>
         </div>
-
-        <!-- 图表与地图并排 -->
         <div class="charts-container">
             <div id="typeChart" style="height:250px;"></div>
             <div id="trendChartAdmin" style="height:250px;"></div>
         </div>
-
-        <!-- 热力图地图容器 -->
         <div style="padding:0 20px; margin-bottom:20px;">
-            <h3>🔥 障碍物热力分布 <span style="font-size:14px; font-weight:normal; margin-left:10px;">颜色越深上报越密集</span></h3>
-            <div id="heatmapContainer" style="height:250px; width:100%; border-radius:20px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);"></div>
+            <h3>🔥 障碍物热力分布</h3>
+            <div id="heatmapContainer" style="height:250px; width:100%; border-radius:20px; overflow:hidden;"></div>
         </div>
-
-        <!-- 批量操作与筛选 -->
         <div class="filter-bar">
             <input type="text" id="searchInput" placeholder="搜索类型或描述...">
             <select id="statusFilter">
@@ -128,7 +405,7 @@
                 <option value="处理中">处理中</option>
                 <option value="已完成">已完成</option>
             </select>
-            <select id="batchAction" style="width:auto;">
+            <select id="batchAction">
                 <option value="">批量操作</option>
                 <option value="processing">标记为处理中</option>
                 <option value="resolved">标记为已完成</option>
@@ -137,19 +414,16 @@
             <button id="exportReportBtn" class="btn-secondary">📄 导出PDF周报</button>
             <button id="refreshBtn" class="btn-primary">🔄 刷新</button>
         </div>
-
-        <!-- 障碍物表格 -->
         <div id="obstacleTable" class="table-container"></div>
     </div>
 
     <!-- POI 管理 Tab -->
     <div id="poiTab" class="tab-content hidden">
         <div style="padding: 20px;">
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <button id="addPoiBtn" class="btn-primary" style="width: auto; padding: 10px 20px;">➕ 新增 POI</button>
-                <button id="refreshPoiBtn" class="btn-secondary" style="width: auto; padding: 10px 20px;">🔄 刷新</button>
-                <!-- 新增管理员按钮 -->
-                <button id="addAdminBtn" class="btn-secondary" style="width: auto; padding: 10px 20px;">👤 新增管理员</button>
+            <div class="poi-actions">
+                <button id="addPoiBtn" class="btn-primary">➕ 新增 POI</button>
+                <button id="refreshPoiBtn" class="btn-secondary">🔄 刷新</button>
+                <button id="addAdminBtn" class="btn-secondary">👤 新增管理员</button>
             </div>
             <div id="poiTableContainer" class="table-container"></div>
         </div>
@@ -158,9 +432,7 @@
     <!-- SOS 求助记录 Tab -->
     <div id="sosTab" class="tab-content hidden">
         <div style="padding: 20px;">
-            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <button id="refreshSosBtn" class="btn-secondary">🔄 刷新</button>
-            </div>
+            <button id="refreshSosBtn" class="btn-secondary" style="margin-bottom:20px;">🔄 刷新 SOS 记录</button>
             <div id="sosTableContainer" class="table-container"></div>
         </div>
     </div>
@@ -194,41 +466,89 @@
         </div>
     </div>
 
-    <!-- 设施状态编辑模态框 -->
-    <div id="facilityEditModal" class="modal">
-        <div class="modal-content" style="max-width: 400px;">
+    <!-- 新增 POI 模态框（美观版） -->
+    <div id="addPoiModal" class="modal form-modal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeAddPoiModal">&times;</span>
+            <h3>➕ 新增地点</h3>
+            <form id="addPoiForm">
+                <div class="form-group">
+                    <label>🏷️ 名称 *</label>
+                    <input type="text" id="poiName" required placeholder="例如：图书馆">
+                </div>
+                <div class="form-group">
+                    <label>📍 纬度 *</label>
+                    <input type="number" step="0.000001" id="poiLat" required placeholder="26.879000">
+                </div>
+                <div class="form-group">
+                    <label>📍 经度 *</label>
+                    <input type="number" step="0.000001" id="poiLng" required placeholder="112.516000">
+                </div>
+                <div class="form-group">
+                    <label>🏢 类型</label>
+                    <input type="text" id="poiType" placeholder="教学楼 / 食堂 / 宿舍等">
+                </div>
+                <div class="form-group">
+                    <label>⭐ 评分 (0-5)</label>
+                    <div class="rating-slider">
+                        <input type="range" id="poiScore" min="0" max="5" step="0.1" value="3.0">
+                        <span class="rating-value" id="scoreValue">3.0</span>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelAddPoiBtn">取消</button>
+                    <button type="submit" class="btn-primary">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑设施状态模态框（美化） -->
+    <div id="facilityEditModal" class="modal form-modal">
+        <div class="modal-content">
             <span class="close-btn" id="closeFacilityModal">&times;</span>
-            <h3>编辑设施状态</h3>
+            <h3>✏️ 编辑设施状态</h3>
             <input type="hidden" id="editPoiName">
-            <label>电梯状态：</label>
-            <select id="editElevator">
-                <option value="正常">正常</option>
-                <option value="维修中">维修中</option>
-                <option value="无">无</option>
-            </select>
-            <label>坡道状态：</label>
-            <select id="editRamp">
-                <option value="正常">正常</option>
-                <option value="维修中">维修中</option>
-                <option value="无">无</option>
-            </select>
-            <label>盲道：</label>
-            <select id="editTactilePaving">
-                <option value="有">有</option>
-                <option value="无">无</option>
-            </select>
-            <label>台阶情况：</label>
-            <select id="editStairs">
-                <option value="无台阶">无台阶</option>
-                <option value="有台阶">有台阶</option>
-            </select>
-            <button id="saveFacilityBtn" class="btn-primary" style="margin-top: 15px;">保存</button>
+            <div class="form-group">
+                <label>🛗 电梯状态</label>
+                <select id="editElevator">
+                    <option value="正常">正常</option>
+                    <option value="维修中">维修中</option>
+                    <option value="无">无</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>♿ 坡道状态</label>
+                <select id="editRamp">
+                    <option value="正常">正常</option>
+                    <option value="维修中">维修中</option>
+                    <option value="无">无</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>🟨 盲道</label>
+                <select id="editTactilePaving">
+                    <option value="有">有</option>
+                    <option value="无">无</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>📶 台阶情况</label>
+                <select id="editStairs">
+                    <option value="无台阶">无台阶</option>
+                    <option value="有台阶">有台阶</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" id="cancelFacilityBtn">取消</button>
+                <button id="saveFacilityBtn" class="btn-primary">保存</button>
+            </div>
         </div>
     </div>
 
     <!-- 新增管理员模态框 -->
-    <div id="addAdminModal" class="modal">
-        <div class="modal-content" style="max-width: 400px;">
+    <div id="addAdminModal" class="modal form-modal">
+        <div class="modal-content">
             <span class="close-btn" id="closeAddAdminModal">&times;</span>
             <h3>👤 新增管理员</h3>
             <form id="addAdminForm">
@@ -244,8 +564,34 @@
                     <label>昵称（可选）</label>
                     <input type="text" id="newAdminNickname">
                 </div>
-                <button type="submit" class="btn-primary">注 册</button>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelAddAdminBtn">取消</button>
+                    <button type="submit" class="btn-primary">注册</button>
+                </div>
             </form>
+        </div>
+    </div>
+
+    <!-- 自定义单按钮弹窗 -->
+    <div id="customAlertOverlay" class="custom-alert-overlay" style="display:none;">
+        <div class="custom-alert-box">
+            <div class="custom-alert-icon" id="customAlertIcon">💬</div>
+            <p id="customAlertMsg" class="custom-alert-msg"></p>
+            <div class="custom-alert-btns" id="customAlertBtns">
+                <button id="customAlertOkBtn" class="btn-primary custom-alert-ok">确 定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定义双按钮确认弹窗 -->
+    <div id="customConfirmOverlay" class="custom-alert-overlay" style="display:none;">
+        <div class="custom-alert-box" style="width: 280px;">
+            <div class="custom-alert-icon" id="confirmIcon">❓</div>
+            <p id="confirmMsg" class="custom-alert-msg"></p>
+            <div style="display: flex; gap: 12px; margin-top: 8px;">
+                <button id="confirmYesBtn" class="btn-primary" style="flex:1;">确 定</button>
+                <button id="confirmNoBtn" class="btn-danger" style="flex:1;">取 消</button>
+            </div>
         </div>
     </div>
 

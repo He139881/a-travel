@@ -18,7 +18,7 @@ body {
 #status {
     position: fixed;
     top: 10px;
-    left: 60px;             /* 留出缩放控件空间 */
+    left: 60px;
     right: 10px;
     background: rgba(255,255,255,0.75);
     backdrop-filter: blur(10px);
@@ -139,99 +139,60 @@ body {
     position: absolute;
     bottom: 100%;
     left: 0;
-    background: rgba(255,255,255, 0.96);
+    background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(20px);
-    padding: 16px;
-    border-radius: 24px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+    padding: 20px;
+    border-radius: 28px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
     z-index: 1001;
-    min-width: 230px;
+    min-width: 260px;
     display: none;
-    border: 1px solid rgba(0,0,0,0.04);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    margin-bottom: 8px;
 }
-
 .pref-title {
-    font-weight: 700;
-    margin-bottom: 12px;
-    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    font-size: 16px;
     color: #1a1a1a;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
-
 .pref-item {
-    margin-bottom: 12px;
+    margin-bottom: 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 12px;
 }
-
 .pref-item label:first-child {
     font-weight: 500;
-    font-size: 13px;
+    font-size: 14px;
     color: #333;
 }
-
-/* 自定义开关外观 */
-.pref-item input[type="checkbox"] {
-    width: 44px;
-    height: 24px;
-    appearance: none;
-    background: #d1d1d6;
-    border-radius: 12px;
-    position: relative;
-    outline: none;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-.pref-item input[type="checkbox"]::before {
-    content: "";
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    top: 2px;
-    left: 2px;
-    background: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    transition: transform 0.2s;
-}
-.pref-item input[type="checkbox"]:checked {
-    background: #007aff;
-}
-.pref-item input[type="checkbox"]:checked::before {
-    transform: translateX(20px);
-}
-
 .obstacle-types {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 8px;
+    margin-top: 12px;
 }
 .obstacle-types label {
     font-size: 12px;
-    background: #f0f0f5;
+    background: #f2f2f7;
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 24px;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    transition: 0.15s;
-}
-.obstacle-types input[type="checkbox"] {
-    width: auto;
-    height: auto;
-    appearance: checkbox;
-    background: none;
+    gap: 6px;
+    transition: all 0.2s;
 }
 .obstacle-types label:has(input:checked) {
-    background: #007aff15;
+    background: #007aff20;
     color: #007aff;
-    font-weight: 500;
 }
 
 /* ========== 功能按钮卡片 ========== */
@@ -271,14 +232,20 @@ body {
     gap: 8px;
 }
 .tool-btn {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    font-weight: 500;
+    transition: 0.2s;
     flex: 1;
-    background: rgba(0,0,0,0.04);
-    border: none;
     border-radius: 20px;
     padding: 8px;
     font-size: 13px;
     cursor: pointer;
     color: #333;
+}
+.tool-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
 }
 
 /* ========== 设施面板 ========== */
@@ -459,7 +426,6 @@ form .btn-primary {
     background-color: rgba(0, 0, 0, 0.9);
     cursor: pointer;
 }
-
 .image-modal-content {
     position: absolute;
     top: 50%;
@@ -470,7 +436,6 @@ form .btn-primary {
     object-fit: contain;
     border-radius: 8px;
 }
-
 .image-modal-close {
     position: absolute;
     top: 20px;
@@ -481,7 +446,110 @@ form .btn-primary {
     cursor: pointer;
     z-index: 10000;
 }
-
 .image-modal-close:hover {
     color: #ccc;
+}
+/* ========== 数据看板模态框新样式 ========== */
+.stats-modal-content {
+    max-width: 600px;
+    width: 90%;
+    background: white;
+    border-radius: 32px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+.stats-modal-header {
+    background: linear-gradient(135deg, #007aff, #5856d6);
+    padding: 20px 24px;
+    color: white;
+}
+.stats-modal-header h3 {
+    margin: 0;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.stats-modal-body {
+    padding: 24px;
+}
+.stats-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+}
+.stats-mini-card {
+    background: #f8f9fc;
+    border-radius: 20px;
+    padding: 16px;
+    text-align: center;
+}
+.stats-mini-card .number {
+    font-size: 28px;
+    font-weight: bold;
+    color: #007aff;
+}
+.stats-mini-card .label {
+    font-size: 13px;
+    color: #666;
+    margin-top: 6px;
+}
+.chart-box {
+    margin-top: 20px;
+    background: #fff;
+    border-radius: 24px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+.chart-box h4 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: #1a1a1a;
+}
+/* 自定义弹窗美化 */
+.custom-alert-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.custom-alert-box {
+    background: white;
+    border-radius: 32px;
+    width: 280px;
+    padding: 24px 20px 20px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    animation: fadeInUp 0.2s ease;
+}
+.custom-alert-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+.custom-alert-msg {
+    font-size: 16px;
+    color: #1a1a1a;
+    margin: 12px 0 20px;
+    line-height: 1.4;
+}
+.custom-alert-ok {
+    background: #007aff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 40px;
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100%;
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
