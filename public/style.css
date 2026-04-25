@@ -553,3 +553,50 @@ form .btn-primary {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* 路线起点/终点标记样式 */
+.route-marker {
+    background: transparent !important;
+    border: none !important;
+    font-size: 40px;        /* 改大，原来 28px */
+    text-align: center;
+    line-height: 40px;      /* 与 font-size 一致 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 高对比度模式 */
+body.high-contrast {
+    background: #000 !important;
+    color: #fff !important;
+}
+body.high-contrast .glass-card {
+    background: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 0 0 2px #fff !important;
+}
+body.high-contrast .btn-primary,
+body.high-contrast .action-btn {
+    background: #fff !important;
+    color: #000 !important;
+    border: 2px solid #000 !important;
+}
+body.high-contrast .facility-panel {
+    background: rgba(0, 0, 0, 0.9) !important;
+    color: #fff !important;
+}
+body.high-contrast #status {
+    background: rgba(0, 0, 0, 0.85) !important;
+    color: #fff !important;
+}
+body.high-contrast .autocomplete-items {
+    background: #000 !important;
+    border: 1px solid #fff !important;
+}
+body.high-contrast .autocomplete-item {
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+}
+body.high-contrast .autocomplete-item:hover {
+    background: #333 !important;
+}

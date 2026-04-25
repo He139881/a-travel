@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -14,6 +15,7 @@
         /* 偏好面板等样式已内嵌，因 style.css 已完整，此处只需留空或补充 */
     </style>
 </head>
+
 <body>
     <div id="map"></div>
 
@@ -77,7 +79,7 @@
                 <button id="sosBtn" class="action-btn sos-btn">🆘 SOS</button>
                 <button id="reportBtn" class="action-btn">📝 上报</button>
                 <a href="admin.html" target="_blank" class="action-btn">⚙️ 管理</a>
-                <button id="locateBtn" class="action-btn">📍 定位</button>
+                <button id="highContrastBtn" class="action-btn">🌗 高对比</button>
                 <a href="user.html" id="userCenterBtn" class="action-btn">👤 我的</a>
             </div>
             <span id="userStatus" class="user-status-text"></span>
@@ -120,7 +122,8 @@
                 <input type="text" id="obstacleDesc" placeholder="例如：图书馆门口三级台阶">
                 <label>拍照上传：</label>
                 <input type="file" id="obstaclePhoto" accept="image/*" capture="environment">
-                <img id="photoPreview" style="display:none; max-width:100%; max-height:200px; margin-top:8px; border-radius:12px;">
+                <img id="photoPreview"
+                    style="display:none; max-width:100%; max-height:200px; margin-top:8px; border-radius:12px;">
                 <input type="hidden" id="obstacleLat">
                 <input type="hidden" id="obstacleLng">
                 <p id="locationHint">📍 将使用当前地图中心位置</p>
@@ -134,7 +137,8 @@
         <div class="modal-content" style="max-width: 420px;">
             <span class="close-btn" id="closeSosModal">&times;</span>
             <h3>🆘 紧急求助</h3>
-            <div id="sosLocationInfo" style="background: #f0f7ff; padding: 12px; border-radius: 16px; margin-bottom: 15px; font-size: 13px;">
+            <div id="sosLocationInfo"
+                style="background: #f0f7ff; padding: 12px; border-radius: 16px; margin-bottom: 15px; font-size: 13px;">
                 <strong>📍 您的位置：</strong><br>
                 <span id="sosAddress">正在获取...</span>
             </div>
@@ -143,7 +147,8 @@
                 <textarea id="sosMessage" rows="3" placeholder="请描述您需要什么帮助…"
                     style="width:100%; padding:12px; border:1px solid #e0e0e0; border-radius:16px; font-size:14px; resize:vertical;"></textarea>
             </div>
-            <button id="confirmSosBtn" class="btn-primary" style="margin-top: 10px; background: #ff3b30;">🚨 立即发送 SOS</button>
+            <button id="confirmSosBtn" class="btn-primary" style="margin-top: 10px; background: #ff3b30;">🚨 立即发送
+                SOS</button>
         </div>
     </div>
 
@@ -154,8 +159,12 @@
             <button onclick="document.getElementById('voiceHintPanel').style.display='none'">&times;</button>
         </div>
         <div class="hint-tags">
-            <span class="voice-cmd" onclick="document.getElementById('endAddress').value='图书馆'; speak('导航到图书馆'); planRealRoute();">📖 导航到图书馆</span>
-            <span class="voice-cmd" onclick="document.getElementById('endAddress').value='食堂'; speak('导航到食堂'); planRealRoute();">🍜 导航到食堂</span>
+            <span class="voice-cmd"
+                onclick="document.getElementById('endAddress').value='图书馆'; speak('导航到图书馆'); planRealRoute();">📖
+                导航到图书馆</span>
+            <span class="voice-cmd"
+                onclick="document.getElementById('endAddress').value='食堂'; speak('导航到食堂'); planRealRoute();">🍜
+                导航到食堂</span>
             <span class="voice-cmd" onclick="speak('附近的电梯'); queryFacility('电梯')">🛗 找电梯</span>
             <span class="voice-cmd" onclick="speak('附近的坡道'); queryFacility('坡道')">♿ 找坡道</span>
             <span class="voice-cmd" onclick="speak('我要去西门'); executeNavigate('西门')">🚪 去西门</span>
@@ -195,9 +204,9 @@
     <script src="app.js"></script>
     <script>
         // 确保全局函数存在（以防 app.js 尚未覆盖）
-        window.showNiceAlert = window.showNiceAlert || function(msg, icon, cb) { alert(msg); if(cb) cb(); };
-        window.showConfirm = window.showConfirm || function(msg, onYes, onNo) { if(confirm(msg)) onYes(); else if(onNo) onNo(); };
-        
+        window.showNiceAlert = window.showNiceAlert || function (msg, icon, cb) { alert(msg); if (cb) cb(); };
+        window.showConfirm = window.showConfirm || function (msg, onYes, onNo) { if (confirm(msg)) onYes(); else if (onNo) onNo(); };
+
         // 设施面板折叠
         document.getElementById('facilityPanelHeader').addEventListener('click', () => {
             const list = document.getElementById('facilityList');
@@ -226,4 +235,5 @@
         });
     </script>
 </body>
+
 </html>
