@@ -605,8 +605,27 @@ function loadPoiImageForMarker(marker, poi) {
         setTimeout(() => {
             const container = document.getElementById(`img-container-${poi.id}`);
             if (container && container.innerHTML.includes('加载中')) {
-                // 直接显示占位图，不尝试加载原图
-                container.innerHTML = `<img src="images/poi/等待上传.jpg" style="width:100%; max-height:120px; object-fit:cover; border-radius:12px; opacity:0.7;" />`;
+                const imgSrc = `images/poi/${encodeURIComponent(poi.name)}.jpg`;
+                const img = new Image();
+                img.onload = function () {
+                    container.innerHTML = '';
+                    const imgElement = document.createElement('img');
+                    imgElement.src = imgSrc;
+                    imgElement.style.width = '100%';
+                    imgElement.style.maxHeight = '120px';
+                    imgElement.style.objectFit = 'cover';
+                    imgElement.style.borderRadius = '12px';
+                    imgElement.style.cursor = 'pointer';
+                    imgElement.onclick = function () {
+                        if (window.openImageModal) window.openImageModal(imgSrc);
+                    };
+                    container.appendChild(imgElement);
+                };
+                img.onerror = function () {
+                    // 替换为占位图
+                    container.innerHTML = `<img src="images/poi/等待上传.jpg" style="width:100%; max-height:120px; object-fit:cover; border-radius:12px; opacity:0.7;" />`;
+                };
+                img.src = imgSrc;
             }
         }, 50);
     });
