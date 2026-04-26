@@ -1,7 +1,7 @@
 let currentTileLayer = null;
 // 高德地图 API 配置
 const AMAP_KEY = '2c5385f0963e09c03c60546742d12f0c';
-const API_BASE = '/api';
+const API_BASE = 'http://localhost:3000/api';
 
 // ========== 坐标系转换（WGS-84 → GCJ-02，用于GPS定位） ==========
 const a = 6378245.0;
@@ -605,25 +605,8 @@ function loadPoiImageForMarker(marker, poi) {
         setTimeout(() => {
             const container = document.getElementById(`img-container-${poi.id}`);
             if (container && container.innerHTML.includes('加载中')) {
-                const imgSrc = `images/poi/${encodeURIComponent(poi.name)}.jpg`;
-                fetch(imgSrc, { method: 'HEAD' })
-                    .then(response => {
-                        if (response.ok) {
-                            const imgElement = document.createElement('img');
-                            imgElement.src = imgSrc;
-                            imgElement.style.width = '100%';
-                            imgElement.style.maxHeight = '120px';
-                            imgElement.style.objectFit = 'cover';
-                            imgElement.style.borderRadius = '12px';
-                            imgElement.style.cursor = 'pointer';
-                            imgElement.onclick = function () { if (window.openImageModal) window.openImageModal(imgSrc); };
-                            container.innerHTML = '';
-                            container.appendChild(imgElement);
-                        } else {
-                            container.innerHTML = '<div style="font-size:12px; color:#888;">📷 暂无设施照片</div>';
-                        }
-                    })
-                    .catch(() => { container.innerHTML = '<div style="font-size:12px; color:#888;">📷 暂无设施照片</div>'; });
+                // 直接显示占位图，不尝试加载原图
+                container.innerHTML = `<img src="images/poi/等待上传.jpg" style="width:100%; max-height:120px; object-fit:cover; border-radius:12px; opacity:0.7;" />`;
             }
         }, 50);
     });

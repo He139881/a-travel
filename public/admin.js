@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = 'http://localhost:3000/api';
 
 // ========== 美观弹窗函数 ==========
 function showNiceAlert(message, icon = '💬', onConfirm = null) {
