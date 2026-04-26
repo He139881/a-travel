@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 // ========== 美观弹窗函数 ==========
 function showNiceAlert(message, icon = '💬', onConfirm = null) {
@@ -491,6 +491,7 @@ async function linkObstacleToRoad(id, action) {
     });
 }
 
+
 // ========== 批量操作 ==========
 async function applyBatchAction() {
     const action = document.getElementById('batchAction').value;
@@ -520,7 +521,7 @@ async function exportPDF() {
     const canvas2 = await html2canvas(chartsEl);
     const canvas3 = await html2canvas(heatEl);
     pdf.setFontSize(16);
-    pdf.text('无障碍出行社区周报', 10, 20);
+    pdf.text('无障碍出行 -USC 周报', 10, 20);
     pdf.addImage(canvas1.toDataURL(), 'PNG', 10, 30, 190, 40);
     pdf.addImage(canvas2.toDataURL(), 'PNG', 10, 80, 190, 80);
     pdf.addPage();

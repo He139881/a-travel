@@ -1,7 +1,7 @@
 let currentTileLayer = null;
 // 高德地图 API 配置
 const AMAP_KEY = '2c5385f0963e09c03c60546742d12f0c';
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 // ========== 坐标系转换（WGS-84 → GCJ-02，用于GPS定位） ==========
 const a = 6378245.0;
@@ -521,27 +521,70 @@ function locateAndSetView() {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             const [lng, lat] = wgs84ToGcj02(position.coords.longitude, position.coords.latitude);
-            map.setView([lat, lng], 16);
-            L.marker([lat, lng], { icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] }) }).addTo(map).bindPopup('您当前的位置').openPopup();
-            let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-            try { const addr = await reverseGeocode(lat, lng); if (addr) address = addr; } catch (e) { }
-            const successMsg = `📍 当前位置：${address}`;
-            statusEl.innerText = successMsg;
-            speak(successMsg);
-            const startInput = document.getElementById('startAddress');
-            if (startInput) {
-                startInput.value = address;
-                startInput.dataset.location = `${lng},${lat}`;
-                startInput.dataset.name = '我的位置';
+
+            // 判断是否在南华大学校园内（距离校园中心约1.7km半径）
+            const campusCenter = { lat: 26.879, lng: 112.516 };
+            const dist = getDistance({ lat, lng }, campusCenter);
+            const CAMPUS_RADIUS = 0.025;   // 约1.7公里，覆盖整个校区
+
+            if (dist > CAMPUS_RADIUS) {
+                // 不在校园内 → 自动跳到校园中心，并提示用户
+                map.setView([campusCenter.lat, campusCenter.lng], 15);
+                L.marker([campusCenter.lat, campusCenter.lng], {
+                    icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] })
+                }).addTo(map).bindPopup('南华大学雨母校区').openPopup();
+
+                const msg = '您不在校园内，已自动定位到南华大学雨母校区';
+                statusEl.innerText = msg;
+                speak(msg);
+
+                // 同时将起点设为校园中心，方便评委直接规划路线
+                const startInput = document.getElementById('startAddress');
+                if (startInput) {
+                    startInput.value = '南华大学雨母校区';
+                    startInput.dataset.location = `${campusCenter.lng},${campusCenter.lat}`;
+                    startInput.dataset.name = '校园中心';
+                }
+            } else {
+                // 在校园内 → 使用真实定位，并反向地理编码获取地址
+                map.setView([lat, lng], 16);
+                L.marker([lat, lng], {
+                    icon: L.divIcon({ className: 'current-location', html: '📍', iconSize: [24, 24] })
+                }).addTo(map).bindPopup('您当前的位置').openPopup();
+
+                let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                try {
+                    const addr = await reverseGeocode(lat, lng);
+                    if (addr) address = addr;
+                } catch (e) { }
+                const successMsg = `📍 当前位置：${address}`;
+                statusEl.innerText = successMsg;
+                speak(successMsg);
+
+                const startInput = document.getElementById('startAddress');
+                if (startInput) {
+                    startInput.value = address;
+                    startInput.dataset.location = `${lng},${lat}`;
+                    startInput.dataset.name = '我的位置';
+                }
             }
         },
         (error) => {
+            // 定位失败时直接使用校园默认位置
             console.warn("自动定位失败:", error.message);
             let msg = '📍 定位失败，使用默认校园位置';
             if (error.code === 1) msg = '📍 定位权限被拒绝，使用默认位置';
             else if (error.code === 3) msg = '⏱️ 定位超时，使用默认位置';
             statusEl.innerText = msg;
             map.setView([26.879, 112.516], 15);
+
+            // 定位失败时同样将起点设为校园中心
+            const startInput = document.getElementById('startAddress');
+            if (startInput) {
+                startInput.value = '南华大学雨母校区';
+                startInput.dataset.location = '112.516,26.879';
+                startInput.dataset.name = '校园中心';
+            }
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
@@ -777,7 +820,7 @@ function clearRoute() {
         window.highlightedMarkers.forEach(m => m.setIcon(L.divIcon({ className: 'obstacle-marker', html: '⚠️', iconSize: [24, 24] })));
         window.highlightedMarkers = null;
     }
-    document.getElementById('statusText').innerText = '👋 欢迎使用无障碍出行伴侣';
+    document.getElementById('statusText').innerText = '👋 欢迎使用无障碍出行 -USC';
 }
 
 function clearInputs() {
@@ -1298,7 +1341,7 @@ function useMyLocationAsStart() {
                 startInput.value = address;
                 startInput.dataset.location = `${lng},${lat}`;
                 startInput.dataset.name = '我的位置';
-                const successMsg = `✅ 起点已设置为：${address}`;
+                const successMsg = ` 起点已设置为：${address}`;
                 statusEl.innerText = successMsg;
                 speak('起点已设置为当前位置');
                 resolve();
@@ -1805,7 +1848,7 @@ function startListening() {
     }
 }
 function stopListening() {
-    if (recognition && isListening) { try { recognition.stop(); } catch (e) { } isListening = false; if (inactivityTimer) clearTimeout(inactivityTimer); updateVoiceButtonState(); document.getElementById('statusText').innerHTML = '👋 欢迎使用无障碍出行伴侣'; }
+    if (recognition && isListening) { try { recognition.stop(); } catch (e) { } isListening = false; if (inactivityTimer) clearTimeout(inactivityTimer); updateVoiceButtonState(); document.getElementById('statusText').innerHTML = '👋 欢迎使用无障碍出行 -USC'; }
 }
 function togglePauseResume() { if (speechManager.isPaused) speechManager.resume(); else if (speechManager.isSpeaking) speechManager.pause(); }
 function stopSpeaking() { speechManager.stop(); }
@@ -2123,12 +2166,6 @@ window.onload = async () => {
     // ========== 自动设置起点 ==========
     const startInput = document.getElementById('startAddress');
     const endInput = document.getElementById('endAddress');
-    if (!startInput.value.trim()) {
-        try {
-            await useMyLocationAsStart();
-        } catch (e) { /* 定位失败则留空，稍后可手动输入 */ }
-    }
-    // 不再自动设置终点
 
     // ========== 预置可拖动的起点/终点旗子（地图中心） ==========
     const center = map.getCenter();
@@ -2170,6 +2207,27 @@ window.onload = async () => {
             showNiceAlert('此功能仅管理员可用，请先登录管理员账号', '⚠️');
         }
     });
+
+    // ========== 首次使用说明弹窗（每次刷新都显示） ==========
+    setTimeout(() => {
+        showNiceAlert(
+            '欢迎使用无障碍出行-USC！\n\n' +
+            '本系统专为南华大学雨母校区设计，提供：\n' +
+            '· 无障碍路线规划（避开台阶、坡道）\n' +
+            '· 校园设施查询（电梯、坡道、盲道等）\n' +
+            '· 障碍物上报与志愿者处理\n\n' +
+            '若您不在校园内，系统会自动定位到校园中心。\n' +
+            '点击“我的位置”可重新获取当前位置。\n\n' +
+            '您可以通过拖动旗子灵活设定起点终点。',
+            ''     // 空字符串，让 showNiceAlert 不显示任何初始图标
+        );
+        // 立即把图标替换为建筑 SVG，避免闪烁
+        const iconEl = document.getElementById('customAlertIcon');
+        if (iconEl) {
+            iconEl.innerHTML = '<svg class="icon-svg lg" aria-hidden="true"><use href="#icon-building"/></svg>';
+        }
+    }, 1500);
+
 };
 
 function toggleHighContrast() {

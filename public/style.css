@@ -611,21 +611,27 @@ form .btn-primary {
 .custom-alert-box {
     background: white;
     border-radius: 32px;
-    width: 280px;
-    padding: 24px 20px 20px;
-    text-align: center;
+    width: 420px;               /* 更宽，原来 340px */
+    max-width: 90vw;            /* 手机端不溢出 */
+    padding: 28px 28px 24px;    /* 内边距加大，左右对称 */
+    text-align: left;           /* 整体左对齐 */
     box-shadow: 0 20px 40px rgba(0,0,0,0.2);
     animation: fadeInUp 0.2s ease;
 }
+
 .custom-alert-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
+    text-align: center;         /* 图标仍居中 */
+    margin-bottom: 16px;        /* 与文字间距 */
 }
+
 .custom-alert-msg {
-    font-size: 16px;
-    color: #1a1a1a;
-    margin: 12px 0 20px;
-    line-height: 1.4;
+    font-size: 15px;
+    color: #333;
+    margin: 0 0 20px;           /* 下方留白 */
+    line-height: 1.7;
+    white-space: pre-line;      /* 保留换行 */
+    text-align: left;           /* 文字左对齐 */
+    padding: 0 4px;             /* 左右轻微留白，防止贴边 */
 }
 .custom-alert-ok {
     background: #007aff;
