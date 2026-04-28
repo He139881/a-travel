@@ -6,12 +6,20 @@ body {
     color: #333;
     line-height: 1.5;
 }
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;   /* 防止页面滚动，地图占满全屏 */
+}
 
-/* ========== 地图 ========== */
 #map {
-    height: 100vh;
-    width: 100%;
-    z-index: 1;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* 原来的 height: 100vh; width: 100%; z-index:1; 可以删除 */
 }
 
 /* ========== 状态栏 ========== */
