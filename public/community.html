@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>互助广场 - 无障碍出行</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f5f7fb;
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 28px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: #007aff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-btn {
+            background: #f2f2f7;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            color: #007aff;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .tab-btn.active {
+            background: #007aff;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+        }
+
+        .task-card {
+            background: white;
+            border-radius: 24px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+            transition: 0.2s;
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .task-header {
+            padding: 16px 20px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .task-type {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .task-type.obstacle {
+            background: #ff9500;
+            color: white;
+        }
+
+        .task-type.sos {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .task-status {
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .status-pending {
+            background: #ffe5e5;
+            color: #ff3b30;
+        }
+
+        .status-processing {
+            background: #fff0e0;
+            color: #ff9500;
+        }
+
+        .status-done {
+            background: #e5f5e5;
+            color: #34c759;
+        }
+
+        .task-body {
+            padding: 16px 20px;
+        }
+
+        .task-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .task-location {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .task-desc {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        /* 图片区域 - 卡片随图片高度变化 */
+        .task-photo {
+            margin: 12px 0;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+
+        .task-photo img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .no-photo {
+            background: #f5f5f5;
+            padding: 24px;
+            text-align: center;
+            color: #999;
+            border-radius: 16px;
+            font-size: 13px;
+            margin: 12px 0;
+            border: 1px dashed #ddd;
+        }
+
+        .task-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .claim-btn {
+            background: linear-gradient(135deg, #007aff, #0051b3);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 100%;
+        }
+
+        .claim-btn:active {
+            transform: scale(0.98);
+        }
+
+        .comments-section {
+            background: #f8f9fc;
+            padding: 12px 16px;
+            border-radius: 20px;
+            margin-top: 12px;
+        }
+
+        .comment-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .comment-avatar {
+            width: 32px;
+            height: 32px;
+            background: #007aff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .comment-content {
+            flex: 1;
+        }
+
+        .comment-name {
+            font-weight: 600;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .comment-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .comment-time {
+            font-size: 10px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        .comment-input-area {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .comment-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e2e2e8;
+            border-radius: 24px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .comment-input:focus {
+            border-color: #007aff;
+        }
+
+        .comment-submit {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 0 16px;
+            border-radius: 24px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .claimers-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .claimer-tag {
+            background: #e8f0fe;
+            color: #007aff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span>🤝</span> 互助广场
+            </h1>
+            <a href="index.html" class="back-btn">← 返回地图</a>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-type="all">全部</button>
+            <button class="tab-btn" data-type="obstacle">🚧 障碍物</button>
+            <button class="tab-btn" data-type="sos">🆘 SOS求助</button>
+            <button class="tab-btn" data-type="my">📋 我领取的</button>
+        </div>
+
+        <div id="taskList"></div>
+    </div>
+
+    <script>
+        let currentUser = {
+            id: 1,
+            name: '热心志愿者',
+            avatar: '🤝'
+        };
+
+        function isLoggedIn() {
+            return !!sessionStorage.getItem('token');
+        }
+
+        function getCurrentUser() {
+            const userStr = sessionStorage.getItem('user');
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    return { id: user.id, name: user.username || user.nickname || '志愿者', avatar: '👤' };
+                } catch (e) {}
+            }
+            return currentUser;
+        }
+
+        let tasks = [
+            {
+                id: 1,
+                type: 'obstacle',
+                title: '图书馆门口台阶损坏',
+                location: '图书馆正门',
+                lat: 26.8795,
+                lng: 112.5170,
+                description: '图书馆正门口的台阶有破损，轮椅无法通行，需要维修或设置临时坡道。',
+                photo: 'https://img95.699pic.com/xsj/1s/fz/3v.jpg!/fw/700/watermark/url/L3hzai93YXRlcl9kZXRhaWwyLnBuZw/align/southeast',  // 3:4 竖图
+                status: 'pending',
+                reportTime: '2024-01-15 10:30',
+                reporter: '李同学',
+                claimers: [],
+                comments: [
+                    { id: 1, userId: 2, userName: '王老师', avatar: '👨‍🏫', text: '已反馈给后勤部门，预计3天内处理', time: '2024-01-15 14:20' }
+                ]
+            },
+            {
+                id: 2,
+                type: 'obstacle',
+                title: '笃行园宿舍电梯故障',
+                location: '笃行园2栋',
+                lat: 26.8824,
+                lng: 112.5191,
+                description: '宿舍电梯已故障3天，停在1楼无法运行。',
+                photo: 'https://tse3.mm.bing.net/th/id/OIP.5VX2Kro-XfUtyQvn-P2DZgHaE7?rs=1&pid=ImgDetMain&o=7&rm=3',  // 3:4 竖图
+                status: 'processing',
+                reportTime: '2024-01-14 09:15',
+                reporter: '陈同学',
+                claimers: [
+                    { id: 4, name: '赵维修', avatar: '🔧', claimedAt: '2024-01-14 10:00' }
+                ],
+                comments: [
+                    { id: 1, userId: 4, userName: '赵维修', avatar: '🔧', text: '已联系物业，明天来检修', time: '2024-01-14 10:05' }
+                ]
+            },
+            {
+                id: 3,
+                type: 'sos',
+                title: '紧急求助 - 轮椅故障',
+                location: '雨母楼附近',
+                lat: 26.8787,
+                lng: 112.5163,
+                description: '我的轮椅轮子卡住了，需要帮助！',
+                photo: 'https://tse2.mm.bing.net/th/id/OIP.uiM8v2YRrG3HYkTU2VFUPgHaE8?rs=1&pid=ImgDetMain&o=7&rm=3',  // 2:1 宽图
+                status: 'pending',
+                reportTime: '2024-01-16 08:45',
+                reporter: '孙爷爷',
+                claimers: [],
+                comments: []
+            },
+            {
+                id: 4,
+                type: 'obstacle',
+                title: '盲道被共享单车占用',
+                location: '南门入口路段',
+                lat: 26.8752,
+                lng: 112.5167,
+                description: '南门附近的盲道被大量共享单车占用，视障同学无法正常通行。',
+                photo: null,
+                status: 'pending',
+                reportTime: '2024-01-15 16:20',
+                reporter: '周同学',
+                claimers: [],
+                comments: []
+            }
+        ];
+
+        let currentTab = 'all';
+        let userClaimedTasks = [];
+
+        function saveUserClaims() {
+            localStorage.setItem('userClaimedTasks', JSON.stringify(userClaimedTasks));
+        }
+
+        function loadUserClaims() {
+            const saved = localStorage.getItem('userClaimedTasks');
+            if (saved) {
+                userClaimedTasks = JSON.parse(saved);
+            }
+        }
+
+        function claimTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const user = getCurrentUser();
+            
+            if (task.claimers.some(c => c.id === user.id)) {
+                alert('您已经领取过这个任务了');
+                return;
+            }
+            
+            if (task.status === 'done') {
+                alert('这个任务已经完成了');
+                return;
+            }
+            
+            task.claimers.push({
+                id: user.id,
+                name: user.name,
+                avatar: user.avatar,
+                claimedAt: new Date().toLocaleString()
+            });
+            
+            if (task.status === 'pending') {
+                task.status = 'processing';
+            }
+            
+            if (!userClaimedTasks.includes(taskId)) {
+                userClaimedTasks.push(taskId);
+                saveUserClaims();
+            }
+            
+            alert(`✅ 您已成功领取任务「${task.title}」\n请前往地图页面规划路线！`);
+            renderTasks();
+        }
+
+        function addComment(taskId, commentText) {
+            if (!commentText.trim()) return;
+            
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            const user = getCurrentUser();
+            
+            task.comments.push({
+                id: Date.now(),
+                userId: user.id,
+                userName: user.name,
+                avatar: user.avatar,
+                text: commentText.trim(),
+                time: new Date().toLocaleString()
+            });
+            
+            renderTasks();
+        }
+
+        function navigateToTask(task) {
+            if (!isLoggedIn()) {
+                alert('请先登录后使用导航功能');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            sessionStorage.setItem('navigateTo', JSON.stringify({
+                lat: task.lat,
+                lng: task.lng,
+                name: task.title,
+                location: task.location
+            }));
+            
+            alert(`🎯 正在规划前往「${task.title}」的路线...`);
+            window.location.href = 'index.html';
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('taskList');
+            const user = getCurrentUser();
+            
+            let filteredTasks = tasks;
+            
+            if (currentTab === 'obstacle') {
+                filteredTasks = tasks.filter(t => t.type === 'obstacle');
+            } else if (currentTab === 'sos') {
+                filteredTasks = tasks.filter(t => t.type === 'sos');
+            } else if (currentTab === 'my') {
+                filteredTasks = tasks.filter(t => userClaimedTasks.includes(t.id) || t.claimers.some(c => c.id === user.id));
+            }
+            
+            if (filteredTasks.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: #999;"><span style="font-size: 48px;">📭</span><p>暂无任务</p></div>`;
+                return;
+            }
+            
+            let html = '';
+            
+            for (const task of filteredTasks) {
+                const isClaimed = task.claimers.some(c => c.id === user.id);
+                const isDone = task.status === 'done';
+                const canClaim = !isClaimed && !isDone && task.status !== 'done';
+                
+                let statusText = task.status === 'pending' ? '待领取' : (task.status === 'processing' ? '处理中' : '已完成');
+                let statusClass = task.status === 'pending' ? 'status-pending' : (task.status === 'processing' ? 'status-processing' : 'status-done');
+                
+                html += `
+                    <div class="task-card">
+                        <div class="task-header">
+                            <span class="task-type ${task.type === 'obstacle' ? 'obstacle' : 'sos'}">${task.type === 'obstacle' ? '🚧 障碍物' : '🆘 SOS求助'}</span>
+                            <span class="task-status ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="task-body">
+                            <div class="task-title">${escapeHtml(task.title)}</div>
+                            <div class="task-location">📍 ${escapeHtml(task.location)}</div>
+                            <div class="task-desc">${escapeHtml(task.description)}</div>
+                `;
+                
+                if (task.photo) {
+                    html += `<div class="task-photo"><img src="${task.photo}" alt="${escapeHtml(task.title)}"></div>`;
+                } else {
+                    html += `<div class="no-photo">📷 暂无现场照片</div>`;
+                }
+                
+                html += `
+                            <div class="task-stats">
+                                <span>📅 ${task.reportTime}</span>
+                                <span>👤 上报人: ${task.reporter}</span>
+                                <span>💬 ${task.comments.length} 条评论</span>
+                            </div>
+                `;
+                
+                if (task.claimers.length > 0) {
+                    html += `<div class="claimers-list">${task.claimers.map(c => `<span class="claimer-tag">${c.avatar} ${escapeHtml(c.name)} 已领取</span>`).join('')}</div>`;
+                }
+                
+                if (canClaim) {
+                    html += `<button class="claim-btn" onclick="claimTask(${task.id})">🤝 领取任务并前往处理</button>`;
+                } else if (isClaimed && !isDone) {
+                    html += `<button class="claim-btn" onclick='navigateToTask(${JSON.stringify(task)})'>🗺️ 导航前往处理</button>`;
+                }
+                
+                html += `
+                    <div class="comments-section">
+                        <div class="comment-list">
+                `;
+                
+                for (const comment of task.comments) {
+                    html += `
+                        <div class="comment-item">
+                            <div class="comment-avatar">${comment.avatar}</div>
+                            <div class="comment-content">
+                                <div class="comment-name">${escapeHtml(comment.userName)}</div>
+                                <div class="comment-text">${escapeHtml(comment.text)}</div>
+                                <div class="comment-time">${comment.time}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                        </div>
+                        <div class="comment-input-area">
+                            <input type="text" class="comment-input" id="comment-input-${task.id}" placeholder="写下你的评论..." maxlength="200">
+                            <button class="comment-submit" onclick="addComment(${task.id}, document.getElementById('comment-input-${task.id}').value); document.getElementById('comment-input-${task.id}').value = ''">发送</button>
+                        </div>
+                    </div>
+                `;
+                
+                html += `</div></div>`;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentTab = tab.dataset.type;
+                    renderTasks();
+                });
+            });
+        }
+        
+        loadUserClaims();
+        initTabs();
+        renderTasks();
+        
+        window.claimTask = claimTask;
+        window.addComment = addComment;
+        window.navigateToTask = navigateToTask;
+    </script>
+</body>
+
+</html>

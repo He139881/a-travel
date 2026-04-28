@@ -152,43 +152,69 @@ async function loadRoadSegments() {
 function drawRoadSegments() {
     roadLayers.forEach(layer => map.removeLayer(layer));
     roadLayers = [];
+    
+    console.log(`🎨 开始绘制道路，共 ${roadSegments.length} 条路段`);
+    
+    // 统计坡道数量
+    const rampCount = roadSegments.filter(seg => seg.segment_type === '坡道').length;
+    console.log(`📊 坡道数量: ${rampCount}`);
+    
     roadSegments.forEach(seg => {
-        let color = '#888888';
+        let color = '#888888';  // 默认灰色
         let weight = 4;
-
+        
         const passable = seg.wheelchair_passable;
-
-        // 判断不可通行（支持 '否'、'no'）
-        if (passable === '否' || passable === 'no') {
-            color = '#ff3b30';  // 红色：不可通行
-        }
-        // 判断可通行（支持 '是'、'yes'）
-        else if (passable === '是' || passable === 'yes') {
-            color = '#34c759';  // 绿色：可通行
-        }
-        // 然后按 segment_type 细分
-        else if (seg.segment_type === '台阶') {
-            color = '#ff3b30';
-        } else if (seg.segment_type === '坡道台阶混合') {
-            color = '#ff9500';
+        const segType = seg.segment_type;
+        
+        // ========== 按道路类型设置颜色和粗细 ==========
+        if (segType === '坡道') {
+            color = '#ffcc00';   // 黄色 - 坡道
+            weight = 5;          // 加粗显示
+            console.log(`✅ 坡道 ${seg.id}: 颜色=${color}, 权重=${weight}`);
+        } 
+        else if (segType === '台阶') {
+            color = '#ff3b30';   // 红色 - 台阶
             weight = 5;
-        } else if (seg.segment_type === '坡道') {
-            color = '#ffcc00';
-        } else if (passable === '坡道陡，仅电动轮椅可通行') {
-            color = '#ff9500';
         }
-
+        else if (segType === '坡道台阶混合') {
+            color = '#ff9500';   // 橙色 - 混合
+            weight = 5;
+        }
+        // 根据通行状态设置颜色（非坡道类型）
+        else if (passable === '否' || passable === 'no') {
+            color = '#ff3b30';   // 红色：不可通行
+        }
+        else if (passable === '是' || passable === 'yes') {
+            color = '#34c759';   // 绿色：可通行
+        }
+        
+        // 特殊标记：仅电动轮椅可通行
+        if (passable === '坡道陡，仅电动轮椅可通行') {
+            color = '#ff9500';   // 橙色
+            weight = 5;
+        }
+        
+        // 验证坐标是否有效
+        if (isNaN(seg.start_lat) || isNaN(seg.start_lng) || 
+            isNaN(seg.end_lat) || isNaN(seg.end_lng)) {
+            console.warn(`⚠️ 路段 ${seg.id} 坐标无效，跳过绘制`);
+            return;
+        }
+        
         const latlngs = [
             [seg.start_lat, seg.start_lng],
             [seg.end_lat, seg.end_lng]
         ];
+        
+        // 创建线条
         const polyline = L.polyline(latlngs, {
             color: color,
             weight: weight,
             opacity: 0.8,
             className: 'custom-road'
         }).addTo(map);
-
+        
+        // 添加点击事件
         polyline.on('click', function (e) {
             if (!isLoggedIn()) {
                 showConfirm('上报障碍物需要登录，是否前往登录？', () => {
@@ -198,7 +224,7 @@ function drawRoadSegments() {
             }
             // 打开上报模态框
             document.getElementById('reportModal').style.display = 'flex';
-            // 预填坐标（路段中点），但实际标记时用路段ID为准
+            // 预填坐标（路段中点）
             const midLat = (seg.start_lat + seg.end_lat) / 2;
             const midLng = (seg.start_lng + seg.end_lng) / 2;
             document.getElementById('obstacleLat').value = midLat.toFixed(6);
@@ -207,14 +233,28 @@ function drawRoadSegments() {
             // 存储路段ID，提交时使用
             document.getElementById('reportModal').dataset.roadSegmentId = seg.id;
         });
-
+        
+        // 构建弹窗内容
         let popupText = `<b>${seg.segment_type || '道路'}</b><br>`;
-        popupText += `无障碍通行: ${seg.wheelchair_passable}<br>`;
-        if (seg.notes) popupText += `备注: ${seg.notes}`;
+        popupText += `无障碍通行: ${seg.wheelchair_passable || '未设置'}<br>`;
+        if (seg.notes) popupText += `备注: ${seg.notes}<br>`;
+        popupText += `<button onclick="if(window.isLoggedIn()){document.getElementById('reportModal').style.display='flex';document.getElementById('obstacleLat').value='${(seg.start_lat+seg.end_lat)/2}';document.getElementById('obstacleLng').value='${(seg.start_lng+seg.end_lng)/2}';document.getElementById('reportModal').dataset.roadSegmentId='${seg.id}';}else{showConfirm('需要登录',()=>window.location.href='login.html');}">⚠️ 上报障碍物</button>`;
+        
         polyline.bindPopup(popupText);
         roadLayers.push(polyline);
     });
-    console.log(`✅ 已绘制 ${roadSegments.length} 条自定义道路`);
+    
+    console.log(`✅ 已绘制 ${roadLayers.length} 条道路，其中坡道 ${rampCount} 条应显示为黄色`);
+    
+    // 如果坡道数量 > 0 但实际绘制的黄色线条数量不对，输出警告
+    const yellowCount = roadLayers.filter((layer, idx) => {
+        // 检查线条颜色（通过样式选项）
+        return roadSegments[idx]?.segment_type === '坡道';
+    }).length;
+    
+    if (rampCount > 0 && yellowCount !== rampCount) {
+        console.warn(`⚠️ 坡道数量不匹配: 数据库有 ${rampCount} 条，但只绘制了 ${yellowCount} 条黄色线条`);
+    }
 }
 
 // ========== 语音管理器 ==========
@@ -463,6 +503,7 @@ async function loadObstaclesFromServer() {
         updateObstacleMarkers();
     } catch (err) { console.error('加载障碍物失败:', err); }
 }
+// app.js - 修改 addObstacleToServer 函数
 async function addObstacleToServer(obstacleData) {
     try {
         const res = await fetch(`${API_BASE}/obstacles`, {
@@ -470,8 +511,19 @@ async function addObstacleToServer(obstacleData) {
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify(obstacleData)
         });
-        return res.ok;
-    } catch (err) { console.error('上报失败:', err); return false; }
+        const data = await res.json();
+        if (res.ok && data.success) {
+            // 如果服务器返回了完整的障碍物对象，就添加到本地列表
+            if (data.obstacle) {
+                obstacles.unshift(data.obstacle);
+            }
+            return true;
+        }
+        return false;
+    } catch (err) { 
+        console.error('上报失败:', err); 
+        return false; 
+    }
 }
 async function loadPoiFromServer() {
     try {
@@ -2101,37 +2153,42 @@ window.onload = async () => {
             if (file) { const reader = new FileReader(); reader.onload = (ev) => { document.getElementById('photoPreview').src = ev.target.result; document.getElementById('photoPreview').style.display = 'block'; }; reader.readAsDataURL(file); }
         });
     }
-    document.getElementById('reportForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const type = document.getElementById('obstacleType').value;
-        const desc = document.getElementById('obstacleDesc').value;
-        const photoData = document.getElementById('photoPreview').src;
-        const lat = parseFloat(document.getElementById('obstacleLat').value);
-        const lng = parseFloat(document.getElementById('obstacleLng').value);
-        const roadSegmentId = document.getElementById('reportModal').dataset.roadSegmentId || null;
+    // app.js - 在 window.onload 中的 reportForm 提交处理
+document.getElementById('reportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = document.getElementById('obstacleType').value;
+    const desc = document.getElementById('obstacleDesc').value;
+    const photoData = document.getElementById('photoPreview').src;
+    const lat = parseFloat(document.getElementById('obstacleLat').value);
+    const lng = parseFloat(document.getElementById('obstacleLng').value);
+    const roadSegmentId = document.getElementById('reportModal').dataset.roadSegmentId || null;
 
-        const newObstacle = {
-            id: Date.now(),
-            lat,
-            lng,
-            type,
-            description: desc,
-            status: "未处理",
-            report_time: new Date().toISOString().slice(0, 10),
-            photo: photoData || null,
-            road_segment_id: roadSegmentId ? parseInt(roadSegmentId) : null   // 关键新增
-        };
-        const success = await addObstacleToServer(newObstacle);
-        if (success) {
-            obstacles.push(newObstacle);
-            updateObstacleMarkers();
-            document.getElementById('reportModal').style.display = 'none';
-            speak("感谢上报，管理员会尽快处理");
-            vibrate(1);
-            document.getElementById('reportForm').reset();
-            document.getElementById('photoPreview').style.display = 'none';
-        } else { showNiceAlert('上报失败，请稍后重试', '❌'); }
-    });
+    const newObstacle = {
+        lat, lng, type,
+        description: desc,
+        report_time: new Date().toISOString().slice(0, 10),
+        photo: photoData || null,
+        road_segment_id: roadSegmentId ? parseInt(roadSegmentId) : null
+    };
+    
+    const success = await addObstacleToServer(newObstacle);
+    if (success) {
+        // ========== 新增：显示感谢弹窗 ==========
+        showNiceAlert('感谢您的上报！管理员会尽快处理您上报的障碍物。', '✅');
+        
+        // 重新加载障碍物列表（从服务器获取最新数据）
+        await loadObstaclesFromServer();
+        updateObstacleMarkers();
+        
+        document.getElementById('reportModal').style.display = 'none';
+        speak("感谢上报，管理员会尽快处理");
+        vibrate(1);
+        document.getElementById('reportForm').reset();
+        document.getElementById('photoPreview').style.display = 'none';
+    } else {
+        showNiceAlert('上报失败，请稍后重试', '❌');
+    }
+});
     document.getElementById('confirmSosBtn').addEventListener('click', async () => {
         const lat = parseFloat(document.getElementById('sosModal').dataset.lat);
         const lng = parseFloat(document.getElementById('sosModal').dataset.lng);
@@ -2210,7 +2267,9 @@ window.onload = async () => {
         }
     });
 
-    // ========== 首次使用说明弹窗（每次刷新都显示） ==========
+    // ========== 首次使用说明弹窗（只在第一次访问时显示） ==========
+const hasSeenWelcome = localStorage.getItem('hasSeenWelcome_v2');
+if (!hasSeenWelcome) {
     setTimeout(() => {
         showNiceAlert(
             '欢迎使用无障碍出行-USC！\n\n' +
@@ -2228,7 +2287,10 @@ window.onload = async () => {
         if (iconEl) {
             iconEl.innerHTML = '<svg class="icon-svg lg" aria-hidden="true"><use href="#icon-building"/></svg>';
         }
+        // 标记已显示过
+        localStorage.setItem('hasSeenWelcome_v2', 'true');
     }, 1500);
+}
 
 };
 

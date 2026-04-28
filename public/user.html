@@ -152,6 +152,22 @@
             margin-top: 20px;
             box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
         }
+
+        /* 状态标签样式 */
+        .status-completed {
+            color: #34c759;
+            font-weight: 500;
+        }
+
+        .status-processing {
+            color: #ff9500;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            color: #ff3b30;
+            font-weight: 500;
+        }
     </style>
 </head>
 
@@ -232,229 +248,558 @@
         </div>
     </div>
 
-    <script>
-        const API_BASE = 'http://localhost:3000/api';
-        let currentUser = null;
+   <script>
+    const API_BASE = 'http://localhost:3000/api';
+    let currentUser = null;
+    
+    // 存储上一次的状态，用于检测变化
+    let lastObstacleStatusMap = new Map();
+    let lastSosStatusMap = new Map();
+    let statusCheckInterval = null;
 
-        function getAuthHeaders() {
-            const token = sessionStorage.getItem('token');
-            return token ? { 'Authorization': `Bearer ${token}` } : {};
+    function getAuthHeaders() {
+        const token = sessionStorage.getItem('token');
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+
+    // ========== 美观弹窗函数 ==========
+    function showNiceAlert(message, icon = '✅', onConfirm = null) {
+        console.log('显示弹窗:', message); // 调试日志
+        
+        // 移除已存在的弹窗
+        const existingOverlay = document.querySelector('.custom-alert-overlay');
+        if (existingOverlay) existingOverlay.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-alert-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        const box = document.createElement('div');
+        box.style.cssText = `
+            background: white;
+            border-radius: 32px;
+            width: 300px;
+            padding: 24px 20px 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        `;
+        
+        const iconDiv = document.createElement('div');
+        iconDiv.style.cssText = 'font-size: 48px; margin-bottom: 12px;';
+        if (icon === '✅') iconDiv.innerHTML = '🎉';
+        else if (icon === 'ℹ️') iconDiv.innerHTML = '📢';
+        else iconDiv.innerHTML = icon || '💬';
+        
+        const msgDiv = document.createElement('div');
+        msgDiv.style.cssText = 'font-size: 16px; margin: 12px 0 20px; line-height: 1.4; color: #333;';
+        msgDiv.innerText = message;
+        
+        const okBtn = document.createElement('button');
+        okBtn.innerText = '确 定';
+        okBtn.style.cssText = `
+            background: #007aff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        `;
+        
+        box.appendChild(iconDiv);
+        box.appendChild(msgDiv);
+        box.appendChild(okBtn);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        
+        const closeHandler = () => {
+            overlay.remove();
+            if (onConfirm) onConfirm();
+        };
+        
+        okBtn.addEventListener('click', closeHandler);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeHandler();
+        });
+    }
+
+    // 检查登录
+    function isLoggedIn() {
+        const token = sessionStorage.getItem('token');
+        console.log('检查登录状态:', !!token);
+        return !!token;
+    }
+
+    // 加载用户信息
+    async function loadUserInfo() {
+        console.log('加载用户信息...');
+        if (!isLoggedIn()) {
+            window.location.href = 'login.html';
+            return false;
         }
-
-        // 检查登录
-        function checkAuth() {
-            const token = sessionStorage.getItem('token');
-            if (!token) {
-                alert('请先登录');
+        try {
+            const res = await fetch(`${API_BASE}/auth/me`, {
+                headers: getAuthHeaders()
+            });
+            if (res.ok) {
+                currentUser = await res.json();
+                document.getElementById('username').innerText = currentUser.username;
+                document.getElementById('nickname').innerText = currentUser.nickname || '未设置';
+                document.getElementById('phone').innerText = currentUser.phone || '未设置';
+                document.getElementById('createdAt').innerText = new Date(currentUser.created_at).toLocaleDateString();
+                console.log('用户信息加载成功:', currentUser.username);
+                return true;
+            } else if (res.status === 401) {
+                sessionStorage.removeItem('token');
                 window.location.href = 'login.html';
                 return false;
             }
-            return true;
+        } catch (err) {
+            console.error('加载用户信息失败:', err);
         }
+        return false;
+    }
 
-        // 加载用户信息
-        async function loadUserInfo() {
-            if (!checkAuth()) return;
-            try {
-                const res = await fetch(`${API_BASE}/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                if (res.ok) {
-                    currentUser = await res.json();
-                    document.getElementById('username').innerText = currentUser.username;
-                    document.getElementById('nickname').innerText = currentUser.nickname || '未设置';
-                    document.getElementById('phone').innerText = currentUser.phone || '未设置';
-                    document.getElementById('createdAt').innerText = new Date(currentUser.created_at).toLocaleDateString();
-                } else if (res.status === 401) {
-                    sessionStorage.removeItem('token');
-                    window.location.href = 'login.html';
+ // 加载我的上报 - 只更新显示，不覆盖状态映射
+async function loadMyObstacles() {
+    console.log('加载我的上报...');
+    if (!isLoggedIn()) return;
+    try {
+        const res = await fetch(`${API_BASE}/auth/me/obstacles`, {
+            headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        console.log('我的上报数量:', data.length);
+        const container = document.getElementById('obstaclesList');
+        
+        // ⚠️ 注意：这里不再更新 lastObstacleStatusMap，只更新显示
+        // 状态映射的更新只在 checkStatusChanges 中进行
+        
+        if (data.length === 0) {
+            container.innerHTML = '<div class="user-card" style="text-align:center;">暂无上报记录</div>';
+            return;
+        }
+        
+        let html = '';
+        for (const obs of data) {
+            let statusClass = '';
+            let statusText = obs.status;
+            if (obs.status === '已完成') statusClass = 'status-completed';
+            else if (obs.status === '处理中') statusClass = 'status-processing';
+            else if (obs.status === '未处理') statusClass = 'status-pending';
+            
+            html += `
+                <div class="record-item">
+                    <span class="record-type obstacle">${escapeHtml(obs.type)}</span>
+                    <div>${escapeHtml(obs.description || '无描述')}</div>
+                    <div class="record-time">${obs.report_time} · 状态: <span class="${statusClass}">${statusText}</span></div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    } catch (err) {
+        console.error('加载上报失败:', err);
+        document.getElementById('obstaclesList').innerHTML = '<div class="user-card" style="text-align:center; color:red;">加载失败</div>';
+    }
+}
+
+  // 加载我的SOS
+async function loadMySos() {
+    console.log('加载我的SOS...');
+    if (!isLoggedIn()) return;
+    try {
+        const res = await fetch(`${API_BASE}/auth/me/sos-records`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+            throw new Error('加载失败');
+        }
+        const data = await res.json();
+        console.log('我的SOS数量:', data.length);
+        const container = document.getElementById('sosList');
+        
+        // 检测SOS状态变化并弹窗
+        for (const rec of data) {
+            const previousStatus = lastSosStatusMap.get(rec.id);
+            if (previousStatus && previousStatus !== rec.status) {
+                console.log(`✅ 检测到SOS状态变化! ID:${rec.id}, ${previousStatus} → ${rec.status}`);
+                if (rec.status === '已处理') {
+                    showNiceAlert(`您的 SOS 求助已收到处理！状态已更新为"已处理"。`, '✅');
                 }
-            } catch (err) {
-                console.error(err);
             }
+            lastSosStatusMap.set(rec.id, rec.status);
         }
-
-        // 加载我的上报
-        async function loadMyObstacles() {
-            try {
-                const res = await fetch(`${API_BASE}/auth/me/obstacles`, {
-                    headers: getAuthHeaders()
-                });
-                const data = await res.json();
-                const container = document.getElementById('obstaclesList');
-                if (!data.length) {
-                    container.innerHTML = '<div class="user-card" style="text-align:center;">暂无上报记录</div>';
-                    return;
-                }
-                let html = '';
-                data.forEach(obs => {
-                    html += `
-                        <div class="record-item">
-                            <span class="record-type obstacle">${obs.type}</span>
-                            <div>${obs.description || '无描述'}</div>
-                            <div class="record-time">${obs.report_time} · 状态: ${obs.status}</div>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } catch (err) {
-                console.error(err);
-            }
+        
+        if (data.length === 0) {
+            container.innerHTML = '<div class="user-card" style="text-align:center;">暂无SOS求助记录</div>';
+            return;
         }
-
-        // 加载我的SOS
-        async function loadMySos() {
-            try {
-                const res = await fetch(`${API_BASE}/auth/me/sos-records`, {
-                    headers: getAuthHeaders()
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.error || '加载失败');
-                }
-                const data = await res.json();
-                const container = document.getElementById('sosList');
-                if (!data.length) {
-                    container.innerHTML = '<div class="user-card" style="text-align:center;">暂无SOS求助记录</div>';
-                    return;
-                }
-                let html = '';
-                data.forEach(rec => {
-                    const shortAddress = rec.address ? (rec.address.length > 20 ? rec.address.substr(0, 20) + '…' : rec.address) : '未知地址';
-                    html += `
+        
+        let html = '';
+        for (const rec of data) {
+            const shortAddress = rec.address ? (rec.address.length > 20 ? rec.address.substr(0, 20) + '…' : rec.address) : '未知地址';
+            let statusClass = rec.status === '已处理' ? 'status-completed' : 'status-pending';
+            html += `
                 <div class="record-item">
                     <span class="record-type sos">🆘 SOS求助</span>
                     <div style="margin-top: 8px;">
-                        <div><strong>📍 地址：</strong>${shortAddress}</div>
-                        <div><strong>💬 留言：</strong>${rec.message || '无'}</div>
-                        <div><strong>📌 状态：</strong><span style="color: ${rec.status === '待处理' ? '#ff3b30' : '#34c759'};">${rec.status}</span></div>
+                        <div><strong>📍 地址：</strong>${escapeHtml(shortAddress)}</div>
+                        <div><strong>💬 留言：</strong>${escapeHtml(rec.message || '无')}</div>
+                        <div><strong>📌 状态：</strong><span class="${statusClass}">${rec.status}</span></div>
                         <div class="record-time">🕒 ${new Date(rec.created_at).toLocaleString()}</div>
                     </div>
                     <button class="view-sos-detail-btn" data-id="${rec.id}" style="margin-top: 10px; padding: 6px 12px; background: #007aff; color: white; border: none; border-radius: 20px; cursor: pointer;">🔍 查看详情</button>
                 </div>
             `;
-                });
-                container.innerHTML = html;
-
-                // 绑定详情按钮事件
-                document.querySelectorAll('.view-sos-detail-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const id = btn.dataset.id;
-                        const record = data.find(r => r.id == id);
-                        if (record) showSosDetail(record);
-                    });
-                });
-            } catch (err) {
-                console.error(err);
-                document.getElementById('sosList').innerHTML = `<div class="user-card" style="text-align:center; color:red;">加载失败：${err.message}</div>`;
-            }
         }
+        container.innerHTML = html;
 
-        // 标签切换
-        function initTabs() {
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    const target = tab.dataset.tab;
-                    document.getElementById('obstaclesList').style.display = target === 'obstacles' ? 'block' : 'none';
-                    document.getElementById('sosList').style.display = target === 'sos' ? 'block' : 'none';
-                    if (target === 'obstacles') loadMyObstacles();
-                    else loadMySos();
-                });
+        // 绑定详情按钮事件
+        const btns = document.querySelectorAll('.view-sos-detail-btn');
+        for (const btn of btns) {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const record = data.find(r => r.id == id);
+                if (record) showSosDetail(record);
             });
         }
+    } catch (err) {
+        console.error('加载SOS失败:', err);
+        document.getElementById('sosList').innerHTML = `<div class="user-card" style="text-align:center; color:red;">加载失败：${err.message}</div>`;
+    }
+}
 
-        // 编辑功能
-        function editNickname() { document.getElementById('editNicknameModal').style.display = 'flex'; }
-        function editPhone() { document.getElementById('editPhoneModal').style.display = 'flex'; }
-        function editPassword() { document.getElementById('editPasswordModal').style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
 
-        async function updateNickname() {
-            const nickname = document.getElementById('newNickname').value.trim();
-            if (!nickname) return alert('请输入昵称');
-            const res = await fetch(`${API_BASE}/auth/me`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                body: JSON.stringify({ nickname })
+    // 标签切换
+    function initTabs() {
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const target = tab.dataset.tab;
+                document.getElementById('obstaclesList').style.display = target === 'obstacles' ? 'block' : 'none';
+                document.getElementById('sosList').style.display = target === 'sos' ? 'block' : 'none';
+                if (target === 'obstacles') loadMyObstacles();
+                else loadMySos();
             });
-            if (res.ok) {
-                alert('修改成功');
-                closeModal('editNicknameModal');
-                loadUserInfo();
+        });
+    }
+
+    // 编辑功能
+    function editNickname() { document.getElementById('editNicknameModal').style.display = 'flex'; }
+    function editPhone() { document.getElementById('editPhoneModal').style.display = 'flex'; }
+    function editPassword() { document.getElementById('editPasswordModal').style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    async function updateNickname() {
+        const nickname = document.getElementById('newNickname').value.trim();
+        if (!nickname) return alert('请输入昵称');
+        const res = await fetch(`${API_BASE}/auth/me`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ nickname })
+        });
+        if (res.ok) {
+            alert('修改成功');
+            closeModal('editNicknameModal');
+            loadUserInfo();
+        } else {
+            alert('修改失败');
+        }
+    }
+
+    async function updatePhone() {
+        const phone = document.getElementById('newPhone').value.trim();
+        const res = await fetch(`${API_BASE}/auth/me`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ phone })
+        });
+        if (res.ok) {
+            alert('修改成功');
+            closeModal('editPhoneModal');
+            loadUserInfo();
+        } else {
+            alert('修改失败');
+        }
+    }
+
+    async function updatePassword() {
+        const oldPassword = document.getElementById('oldPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        if (!oldPassword || !newPassword) return alert('请填写完整');
+        const res = await fetch(`${API_BASE}/auth/me/password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ oldPassword, newPassword })
+        });
+        if (res.ok) {
+            alert('密码修改成功，请重新登录');
+            sessionStorage.removeItem('token');
+            window.location.href = 'login.html';
+        } else {
+            const err = await res.json();
+            alert(err.error || '修改失败');
+        }
+    }
+
+    function showSosDetail(record) {
+        const content = document.getElementById('sosDetailContent');
+        const address = record.address || '未知';
+        const lat = record.lat.toFixed(6);
+        const lng = record.lng.toFixed(6);
+        content.innerHTML = `
+            <p><strong>👤 用户：</strong>${escapeHtml(record.username || '匿名')}</p>
+            <p><strong>📍 地址：</strong>${escapeHtml(address)}</p>
+            <p><strong>🌐 坐标：</strong>${lat}, ${lng}</p>
+            <p><strong>💬 留言：</strong>${escapeHtml(record.message || '无')}</p>
+            <p><strong>📌 状态：</strong>${record.status}</p>
+            <p><strong>🕒 上报时间：</strong>${new Date(record.created_at).toLocaleString()}</p>
+        `;
+        document.getElementById('sosDetailModal').style.display = 'flex';
+    }
+
+    // ========== 定时检测状态变化 ==========
+    
+   // 初始化状态映射（从 localStorage 读取上次状态）
+async function initStatusMaps() {
+    console.log('初始化状态映射...');
+    if (!isLoggedIn()) return;
+    
+    try {
+        // 从服务器获取最新数据
+        const obstaclesRes = await fetch(`${API_BASE}/auth/me/obstacles`, {
+            headers: getAuthHeaders()
+        });
+        if (obstaclesRes.ok) {
+            const obstacles = await obstaclesRes.json();
+            
+            // 从 localStorage 读取上次存储的状态
+            const savedObstacleStatus = localStorage.getItem('lastObstacleStatus');
+            if (savedObstacleStatus) {
+                const savedMap = JSON.parse(savedObstacleStatus);
+                console.log('从 localStorage 读取上次状态:', savedMap);
+                // 恢复上次的状态
+                for (const [id, status] of Object.entries(savedMap)) {
+                    lastObstacleStatusMap.set(parseInt(id), status);
+                }
             } else {
-                alert('修改失败');
+                // 首次加载，用服务器数据初始化
+                console.log('首次加载，用服务器数据初始化状态映射');
+                obstacles.forEach(obs => {
+                    lastObstacleStatusMap.set(obs.id, obs.status);
+                });
+                // ========== 新增：立即保存到 localStorage ==========
+                const obstacleStatusObj = {};
+                for (const [id, status] of lastObstacleStatusMap.entries()) {
+                    obstacleStatusObj[id] = status;
+                }
+                localStorage.setItem('lastObstacleStatus', JSON.stringify(obstacleStatusObj));
+                console.log('首次加载，已保存状态到 localStorage');
             }
+            console.log('障碍物状态映射初始化完成，数量:', lastObstacleStatusMap.size);
         }
-
-        async function updatePhone() {
-            const phone = document.getElementById('newPhone').value.trim();
-            const res = await fetch(`${API_BASE}/auth/me`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                body: JSON.stringify({ phone })
-            });
-            if (res.ok) {
-                alert('修改成功');
-                closeModal('editPhoneModal');
-                loadUserInfo();
+        
+        // SOS 类似处理
+        const sosRes = await fetch(`${API_BASE}/auth/me/sos-records`, {
+            headers: getAuthHeaders()
+        });
+        if (sosRes.ok) {
+            const sosRecords = await sosRes.json();
+            const savedSosStatus = localStorage.getItem('lastSosStatus');
+            if (savedSosStatus) {
+                const savedMap = JSON.parse(savedSosStatus);
+                for (const [id, status] of Object.entries(savedMap)) {
+                    lastSosStatusMap.set(parseInt(id), status);
+                }
             } else {
-                alert('修改失败');
+                sosRecords.forEach(rec => {
+                    lastSosStatusMap.set(rec.id, rec.status);
+                });
+                // 保存到 localStorage
+                const sosStatusObj = {};
+                for (const [id, status] of lastSosStatusMap.entries()) {
+                    sosStatusObj[id] = status;
+                }
+                localStorage.setItem('lastSosStatus', JSON.stringify(sosStatusObj));
             }
         }
-
-        async function updatePassword() {
-            const oldPassword = document.getElementById('oldPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            if (!oldPassword || !newPassword) return alert('请填写完整');
-            const res = await fetch(`${API_BASE}/auth/me/password`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                body: JSON.stringify({ oldPassword, newPassword })
-            });
-            if (res.ok) {
-                alert('密码修改成功，请重新登录');
-                sessionStorage.removeItem('token');
-                window.location.href = 'login.html';
-            } else {
-                const err = await res.json();
-                alert(err.error || '修改失败');
-            }
+    } catch (err) {
+        console.error('初始化状态映射失败:', err);
+    }
+}
+  // 检测状态变化并弹窗通知
+async function checkStatusChanges() {
+    console.log('执行状态检测...');
+    if (!isLoggedIn()) return;
+    
+    try {
+        // 获取最新的障碍物列表
+        const obstaclesRes = await fetch(`${API_BASE}/auth/me/obstacles`, {
+            headers: getAuthHeaders()
+        });
+        if (!obstaclesRes.ok) return;
+        const obstacles = await obstaclesRes.json();
+        
+        // 获取最新的 SOS 列表
+        const sosRes = await fetch(`${API_BASE}/auth/me/sos-records`, {
+            headers: getAuthHeaders()
+        });
+        let sosRecords = [];
+        if (sosRes.ok) {
+            sosRecords = await sosRes.json();
         }
+        
+        let hasChange = false;
+        
+        // 检测障碍物状态变化
+        for (const obs of obstacles) {
+            const previousStatus = lastObstacleStatusMap.get(obs.id);
+            if (previousStatus && previousStatus !== obs.status) {
+                console.log(`✅ 检测到障碍物状态变化! ID:${obs.id}, ${previousStatus} → ${obs.status}`);
+                hasChange = true;
+                if (obs.status === '已完成') {
+                    showNiceAlert(`您上报的障碍物（${obs.type}）已被标记为"已完成"！感谢您的贡献。`, '✅');
+                } else if (obs.status === '处理中') {
+                    showNiceAlert(`您上报的障碍物（${obs.type}）已被志愿者认领，状态变为"处理中"。`, 'ℹ️');
+                }
+            }
+            // 更新状态映射
+            lastObstacleStatusMap.set(obs.id, obs.status);
+        }
+        
+        // 检测 SOS 状态变化
+        for (const rec of sosRecords) {
+            const previousStatus = lastSosStatusMap.get(rec.id);
+            if (previousStatus && previousStatus !== rec.status) {
+                console.log(`✅ 检测到SOS状态变化! ID:${rec.id}, ${previousStatus} → ${rec.status}`);
+                hasChange = true;
+                if (rec.status === '已处理') {
+                    showNiceAlert(`您的 SOS 求助已收到处理！状态已更新为"已处理"。`, '✅');
+                }
+            }
+            lastSosStatusMap.set(rec.id, rec.status);
+        }
+        
+        // ========== 新增：保存状态到 localStorage ==========
+        // 每次都保存状态到 localStorage（确保内存和存储同步）
+        const obstacleStatusObj = {};
+        for (const [id, status] of lastObstacleStatusMap.entries()) {
+            obstacleStatusObj[id] = status;
+        }
+        localStorage.setItem('lastObstacleStatus', JSON.stringify(obstacleStatusObj));
 
-        // 退出登录
-        document.getElementById('logoutBtn').addEventListener('click', () => {
+        const sosStatusObj = {};
+        for (const [id, status] of lastSosStatusMap.entries()) {
+            sosStatusObj[id] = status;
+        }
+        localStorage.setItem('lastSosStatus', JSON.stringify(sosStatusObj));
+        console.log('状态已同步到 localStorage');
+        
+    } catch (err) {
+        console.error('检测状态变化失败:', err);
+    }
+}
+    
+
+    function startStatusChecking() {
+    if (statusCheckInterval) clearInterval(statusCheckInterval);
+    console.log('启动定时检测，每10秒一次');
+    statusCheckInterval = setInterval(() => {
+        // 添加定时日志
+        console.log('===== 定时日志 (每10秒) =====');
+        console.log('当前状态映射:', Array.from(lastObstacleStatusMap.entries()));
+        console.log('当前时间:', new Date().toLocaleTimeString());
+        console.log('接下来执行状态检测...');
+        
+        checkStatusChanges();
+    }, 10000);
+}
+
+    function stopStatusChecking() {
+        if (statusCheckInterval) {
+            clearInterval(statusCheckInterval);
+            statusCheckInterval = null;
+            console.log('停止定时检测');
+        }
+    }
+
+    // 退出登录
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            stopStatusChecking();
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('user');
             window.location.href = 'login.html';
         });
+    }
 
-        // 页面初始化
-        window.onload = async () => {
-            await loadUserInfo();
-            initTabs();
-            loadMyObstacles(); // 默认显示上报列表
-        };
-
-        function showSosDetail(record) {
-            const content = document.getElementById('sosDetailContent');
-            const address = record.address || '未知';
-            const lat = record.lat.toFixed(6);
-            const lng = record.lng.toFixed(6);
-            content.innerHTML = `
-        <p><strong>👤 用户：</strong>${record.username || '匿名'}</p>
-        <p><strong>📍 地址：</strong>${address}</p>
-        <p><strong>🌐 坐标：</strong>${lat}, ${lng}</p>
-        <p><strong>💬 留言：</strong>${record.message || '无'}</p>
-        <p><strong>📌 状态：</strong>${record.status}</p>
-        <p><strong>🕒 上报时间：</strong>${new Date(record.created_at).toLocaleString()}</p>
-    `;
-            document.getElementById('sosDetailModal').style.display = 'flex';
+    // 页面初始化 - 使用 DOMContentLoaded 确保 DOM 加载完成
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('=== user.html 页面初始化开始 ===');
+        
+        const loggedIn = isLoggedIn();
+        console.log('登录状态:', loggedIn);
+        
+        if (!loggedIn) {
+            window.location.href = 'login.html';
+            return;
         }
+        
+        await loadUserInfo();
+        initTabs();
+        await loadMyObstacles();
+        await loadMySos();
+        
+        // 初始化状态映射
+        await initStatusMaps();
+        
+        // 启动定时检测
+        startStatusChecking();
+        
+        console.log('=== user.html 页面初始化完成 ===');
+    });
 
-    </script>
+    // 页面关闭时停止检测
+    window.addEventListener('beforeunload', () => {
+        stopStatusChecking();
+    });
+    
+    // 将函数暴露到全局
+    window.editNickname = editNickname;
+    window.editPhone = editPhone;
+    window.editPassword = editPassword;
+    window.closeModal = closeModal;
+    window.updateNickname = updateNickname;
+    window.updatePhone = updatePhone;
+    window.updatePassword = updatePassword;
+    window.showSosDetail = showSosDetail;
+</script>
 
 
     <!-- SOS 详情模态框 -->
