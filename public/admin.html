@@ -13,16 +13,154 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        /* 基础重置与原有样式保持不变，此处只补充新增样式 */
-        * { box-sizing: border-box; margin: 0;padding: 0;}
+        /* 基础重置 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ========== 强制管理员页面可滚动 ========== */
+        html, body {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            height: auto !important;
+            min-height: 100vh;
+        }
 
         body {
             font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
             background: #f5f7fb;
             color: #333;
             line-height: 1.5;
+            height: auto !important;
+            min-height: 100vh;
+            position: relative;
         }
 
+        /* 确保所有 Tab 内容不会限制滚动 */
+        .tab-content {
+            height: auto !important;
+            overflow: visible !important;
+            display: block;
+        }
+
+        .tab-content.hidden {
+            display: none !important;
+        }
+
+        /* 表格容器支持横向滚动，纵向自动扩展 */
+        .table-container {
+            background: white;
+            border-radius: 24px;
+            margin: 0 20px 20px;
+            overflow-x: auto;
+            overflow-y: visible;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            max-width: calc(100vw - 40px);
+        }
+
+        /* 表格最小宽度确保横向滚动 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+
+        th, td {
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th {
+            background: #f8f9fc;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fc;
+        }
+
+        /* 统计数据卡片响应式 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 20px;
+        }
+
+        .stats-cards .card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            transition: transform 0.2s;
+        }
+
+        .stats-cards .card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* 图表容器 */
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 0 20px 20px;
+        }
+
+        /* 热力图容器 */
+        #heatmapContainer {
+            height: 250px;
+            width: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            min-height: 250px;
+        }
+
+        /* 筛选栏 */
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 28px;
+            margin: 20px 20px 20px;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto auto auto;
+            gap: 12px;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            flex-wrap: wrap;
+        }
+
+        .filter-bar input,
+        .filter-bar select,
+        .filter-bar button {
+            height: 44px;
+            padding: 0 16px;
+            border-radius: 24px;
+            border: 1px solid #e2e2e8;
+            background: #f9f9fb;
+            font-size: 14px;
+        }
+
+        .filter-bar .btn-primary {
+            background: #007aff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .filter-bar .btn-secondary {
+            background: #f2f2f7;
+            color: #007aff;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* 头部 */
         .admin-header {
             background: white;
             padding: 16px 24px;
@@ -40,6 +178,7 @@
             font-size: 1.6rem;
         }
 
+        /* Tab 切换 */
         .admin-tabs {
             background: white;
             margin: 0 20px;
@@ -68,70 +207,7 @@
             color: white;
         }
 
-        .stats-cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            padding: 20px;
-        }
-
-        .stats-cards .card {
-            background: white;
-            border-radius: 24px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-            transition: transform 0.2s;
-        }
-
-        .stats-cards .card:hover {
-            transform: translateY(-2px);
-        }
-
-        .charts-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 0 20px 20px;
-        }
-
-        .filter-bar {
-            background: white;
-            padding: 20px;
-            border-radius: 28px;
-            margin: 20px 20px 20px;
-            display: grid;
-            grid-template-columns: 1fr auto auto auto auto auto;
-            gap: 12px;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-        }
-
-        .filter-bar input,
-        .filter-bar select,
-        .filter-bar button {
-            height: 44px;
-            padding: 0 16px;
-            border-radius: 24px;
-            border: 1px solid #e2e2e8;
-            background: #f9f9fb;
-            font-size: 14px;
-        }
-
-        .filter-bar .btn-primary {
-            background: #007aff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-        .filter-bar .btn-secondary {
-            background: #f2f2f7;
-            color: #007aff;
-            border: none;
-            cursor: pointer;
-        }
-
+        /* POI 操作区 */
         .poi-actions {
             display: flex;
             gap: 16px;
@@ -165,37 +241,7 @@
             border: 1px solid #e2e2e8;
         }
 
-        .table-container {
-            background: white;
-            border-radius: 24px;
-            margin: 0 20px 20px;
-            overflow-x: auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 800px;
-        }
-
-        th,
-        td {
-            padding: 14px 12px;
-            text-align: left;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        th {
-            background: #f8f9fc;
-            font-weight: 600;
-            color: #2c3e50;
-        }
-
-        tbody tr:hover {
-            background: #f8f9fc;
-        }
-
+        /* 状态标签 */
         .status-badge {
             padding: 4px 10px;
             border-radius: 20px;
@@ -219,6 +265,7 @@
             color: #34c759;
         }
 
+        /* 照片缩略图 */
         .photo-thumb {
             width: 40px;
             height: 40px;
@@ -227,6 +274,7 @@
             cursor: pointer;
         }
 
+        /* 操作按钮 */
         .table-container .action-btn {
             padding: 6px 14px;
             border-radius: 30px;
@@ -248,6 +296,7 @@
             color: white;
         }
 
+        /* 返回按钮 */
         .btn-back {
             display: inline-block;
             background: rgba(0, 122, 255, 0.1);
@@ -265,6 +314,7 @@
             color: white;
         }
 
+        /* 退出按钮 */
         .logout-btn {
             background: #ff3b30;
             color: white;
@@ -559,7 +609,7 @@
         </div>
         <div style="padding:0 20px; margin-bottom:20px;">
             <h3>🔥 障碍物热力分布</h3>
-            <div id="heatmapContainer" style="height:250px; width:100%; border-radius:20px; overflow:hidden;"></div>
+            <div id="heatmapContainer" style="height:250px; width:100%; border-radius:20px; overflow:hidden; min-height:250px; position:relative;"></div>
         </div>
         <div class="filter-bar">
             <input type="text" id="searchInput" placeholder="搜索类型或描述...">
@@ -618,7 +668,7 @@
             <label>您的姓名/昵称：</label>
             <input type="text" id="volunteerName" placeholder="例如：社区志愿者小王" required>
             <div id="claimActionSection">
-                <p>认领后将状态更新为“处理中”</p>
+                <p>认领后将状态更新为"处理中"</p>
                 <button id="confirmClaimBtn" class="btn-primary">认领并开始处理</button>
             </div>
             <div id="resolveSection" style="display:none;">
