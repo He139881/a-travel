@@ -3,243 +3,356 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>互助广场 - 无障碍出行</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        /* ========== SVG 图标基础样式（与 index 一致） ========== */
+        .icon-svg {
+            width: 1.15em;
+            height: 1.15em;
+            display: inline-block;
+            vertical-align: -0.18em;
+            flex-shrink: 0;
+            pointer-events: none;
+        }
+
+        .icon-svg.lg {
+            width: 1.5em;
+            height: 1.5em;
+            vertical-align: -0.25em;
+        }
+
+        /* 全局重置 */
         * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             background: #f5f7fb;
-            font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
-            padding: 20px;
-            padding-bottom: 80px;
+            font-family: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', Roboto, Helvetica, sans-serif;
+            padding: 12px;
+            padding-bottom: 70px;
         }
 
         .container {
-            max-width: 800px;
+            max-width: 600px;
             margin: 0 auto;
         }
 
+        /* 头部卡片 参照 glass-card 风格 */
         .header {
-            background: white;
-            border-radius: 28px;
-            padding: 16px 20px;
-            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(0px);
+            border-radius: 32px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            border: 0.5px solid rgba(0, 0, 0, 0.02);
         }
 
         .header h1 {
-            font-size: 1.5rem;
-            color: #007aff;
+            font-size: 1.65rem;
+            font-weight: 620;
+            background: linear-gradient(135deg, #007aff, #47a3ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .back-btn {
             background: #f2f2f7;
             border: none;
-            padding: 8px 16px;
-            border-radius: 30px;
+            padding: 8px 18px;
+            border-radius: 40px;
             color: #007aff;
             text-decoration: none;
-            font-weight: 500;
+            font-weight: 510;
             font-size: 14px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
+        .back-btn:active {
+            background: #e5e5ea;
+            transform: scale(0.96);
+        }
+
+        /* 选项卡 - 均匀分布一行展示 */
         .tabs {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             margin-bottom: 20px;
+            justify-content: space-between;
         }
 
         .tab-btn {
             flex: 1;
-            padding: 12px;
+            text-align: center;
+            padding: 10px 0;
             background: white;
             border: none;
-            border-radius: 30px;
-            font-size: 15px;
-            font-weight: 600;
-            color: #666;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 590;
+            color: #5c5f6e;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .tab-btn .icon-svg {
+            width: 1.1em;
+            height: 1.1em;
+        }
+
+        @media (max-width: 420px) {
+            .tab-btn {
+                font-size: 12px;
+                padding: 9px 0;
+            }
         }
 
         .tab-btn.active {
             background: #007aff;
             color: white;
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            box-shadow: 0 6px 14px rgba(0, 122, 255, 0.25);
+            transform: translateY(-1px);
         }
 
+        /* 任务卡片 与index保持统一感 */
         .task-card {
             background: white;
-            border-radius: 24px;
-            margin-bottom: 16px;
+            border-radius: 28px;
+            margin-bottom: 18px;
             overflow: hidden;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-            transition: 0.2s;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+            transition: all 0.2s;
+            border: 0.5px solid rgba(0, 0, 0, 0.03);
         }
 
-        .task-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        .task-card:active {
+            transform: scale(0.99);
         }
 
         .task-header {
-            padding: 16px 20px 12px;
+            padding: 16px 18px 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #f0f0f2;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .task-type {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 30px;
             font-size: 12px;
             font-weight: 600;
+            background: #f2f2f7;
+            color: #1c1c1e;
         }
 
         .task-type.obstacle {
-            background: #ff9500;
-            color: white;
+            background: #fff1e0;
+            color: #c44c00;
         }
 
         .task-type.sos {
-            background: #ff3b30;
-            color: white;
+            background: #ffeae9;
+            color: #d70015;
         }
 
         .task-status {
-            font-size: 12px;
-            padding: 4px 12px;
-            border-radius: 20px;
+            font-size: 11px;
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-weight: 590;
         }
 
         .status-pending {
-            background: #ffe5e5;
-            color: #ff3b30;
+            background: #fff0f0;
+            color: #e5482d;
         }
 
         .status-processing {
-            background: #fff0e0;
-            color: #ff9500;
+            background: #fff0e6;
+            color: #e57c00;
         }
 
         .status-done {
-            background: #e5f5e5;
-            color: #34c759;
+            background: #e3f5ec;
+            color: #2b8c4a;
         }
 
         .task-body {
-            padding: 16px 20px;
+            padding: 16px 18px 18px;
         }
 
         .task-title {
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 1.2rem;
+            font-weight: 640;
+            line-height: 1.35;
             margin-bottom: 8px;
+            color: #1c1c1e;
         }
 
         .task-location {
             font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
+            color: #6c6f78;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
+            flex-wrap: wrap;
         }
 
         .task-desc {
-            font-size: 14px;
-            color: #333;
-            margin-bottom: 12px;
-            line-height: 1.5;
+            font-size: 14.5px;
+            color: #2c2c2e;
+            margin-bottom: 14px;
+            line-height: 1.45;
         }
 
-        /* 图片区域 - 卡片随图片高度变化 */
         .task-photo {
-            margin: 12px 0;
-            border-radius: 16px;
+            margin: 12px 0 14px;
+            border-radius: 20px;
             overflow: hidden;
-            background: #f0f0f0;
+            background: #f9f9fc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 0.5px solid #eeeef0;
         }
 
         .task-photo img {
             width: 100%;
             height: auto;
             display: block;
+            object-fit: cover;
+            max-height: 320px;
+            cursor: pointer;
         }
 
         .no-photo {
-            background: #f5f5f5;
-            padding: 24px;
+            background: #f8f9fc;
+            padding: 26px 14px;
             text-align: center;
-            color: #999;
-            border-radius: 16px;
+            color: #8e8e93;
+            border-radius: 20px;
             font-size: 13px;
-            margin: 12px 0;
-            border: 1px dashed #ddd;
+            margin: 12px 0 14px;
+            border: 1px dashed #d9d9df;
         }
 
         .task-stats {
             display: flex;
-            gap: 16px;
-            font-size: 13px;
-            color: #888;
-            margin-bottom: 12px;
             flex-wrap: wrap;
+            gap: 12px;
+            font-size: 12px;
+            color: #8e8e93;
+            margin-bottom: 14px;
+            background: #f8f9fc;
+            padding: 10px 14px;
+            border-radius: 18px;
+            align-items: center;
         }
 
         .claim-btn {
-            background: linear-gradient(135deg, #007aff, #0051b3);
+            background: linear-gradient(105deg, #007aff, #005fcb);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-weight: 600;
+            padding: 14px 0;
+            border-radius: 44px;
+            font-weight: 620;
+            font-size: 16px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s;
             width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0, 122, 255, 0.2);
+            margin: 12px 0 8px;
+        }
+
+        .claim-btn .icon-svg {
+            width: 1.2em;
+            height: 1.2em;
         }
 
         .claim-btn:active {
-            transform: scale(0.98);
+            transform: scale(0.97);
+            background: linear-gradient(105deg, #005fcb, #004aa0);
+        }
+
+        .claimers-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 6px;
+        }
+
+        .claimer-tag {
+            background: #eef3fe;
+            color: #0066cc;
+            padding: 5px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .comments-section {
-            background: #f8f9fc;
-            padding: 12px 16px;
-            border-radius: 20px;
-            margin-top: 12px;
+            background: #fbfbfd;
+            padding: 14px 16px;
+            border-radius: 24px;
+            margin-top: 14px;
+            border: 0.5px solid #efeff4;
         }
 
         .comment-item {
             display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-            font-size: 13px;
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         .comment-avatar {
-            width: 32px;
-            height: 32px;
-            background: #007aff;
+            width: 38px;
+            height: 38px;
+            background: #007aff20;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 14px;
+            color: #007aff;
+            font-size: 18px;
             flex-shrink: 0;
+            background: #eef3fe;
         }
 
         .comment-content {
@@ -247,92 +360,307 @@
         }
 
         .comment-name {
-            font-weight: 600;
-            font-size: 12px;
-            color: #333;
+            font-weight: 610;
+            font-size: 13px;
+            color: #1c1c1e;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .comment-text {
-            font-size: 12px;
-            color: #666;
-            margin-top: 2px;
+            font-size: 13.5px;
+            color: #3a3a3c;
+            margin-top: 3px;
+            line-height: 1.4;
         }
 
         .comment-time {
             font-size: 10px;
-            color: #999;
-            margin-top: 2px;
+            color: #8e8e93;
+            margin-top: 4px;
         }
 
         .comment-input-area {
             display: flex;
             gap: 10px;
-            margin-top: 12px;
+            margin-top: 16px;
+            align-items: center;
         }
 
         .comment-input {
             flex: 1;
-            padding: 10px 14px;
-            border: 1px solid #e2e2e8;
-            border-radius: 24px;
-            font-size: 13px;
+            padding: 12px 16px;
+            border: 1px solid #e3e3e8;
+            border-radius: 44px;
+            font-size: 14px;
             outline: none;
+            background: white;
+            font-family: inherit;
         }
 
         .comment-input:focus {
             border-color: #007aff;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
         }
 
         .comment-submit {
             background: #007aff;
             color: white;
             border: none;
-            padding: 0 16px;
-            border-radius: 24px;
+            padding: 10px 20px;
+            border-radius: 40px;
             font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+
+        .comment-submit:active {
+            background: #005fcb;
+            transform: scale(0.96);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            background: white;
+            border-radius: 40px;
+            color: #8e8e93;
+            margin-top: 40px;
+        }
+
+        .empty-state .icon-svg {
+            width: 56px;
+            height: 56px;
+            margin-bottom: 12px;
+            color: #c6c6c8;
+        }
+
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.92);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 20px;
+            object-fit: contain;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
             cursor: pointer;
         }
 
-        .claimers-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 12px;
-        }
+        @media (max-width: 480px) {
+            body {
+                padding: 12px 10px 16px;
+            }
 
-        .claimer-tag {
-            background: #e8f0fe;
-            color: #007aff;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+            .task-title {
+                font-size: 1.1rem;
+            }
+
+            .task-header {
+                padding: 14px 16px 10px;
+            }
+
+            .task-body {
+                padding: 14px 16px 16px;
+            }
         }
     </style>
 </head>
 
 <body>
+    <!-- ==================== SVG 图标库（与 index 完全一致） ==================== -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;" aria-hidden="true">
+        <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10.5" cy="10.5" r="7.5" />
+            <line x1="16.5" y1="16.5" x2="21" y2="21" />
+        </symbol>
+        <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+        </symbol>
+        <symbol id="icon-wheelchair" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="2" />
+            <path d="M8 22c4.5-3 8-7.5 8-13" />
+            <path d="M7 14h6l4 8" />
+            <circle cx="17" cy="19" r="3" />
+            <path d="M17 16v4" />
+        </symbol>
+        <symbol id="icon-map-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z" />
+            <circle cx="12" cy="10" r="3" />
+        </symbol>
+        <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001.08 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1.08z" />
+        </symbol>
+        <symbol id="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+            <path d="M19 10v2a7 7 0 01-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+        </symbol>
+        <symbol id="icon-alert-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+        </symbol>
+        <symbol id="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </symbol>
+        <symbol id="icon-contrast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a10 10 0 010 20V2z" fill="currentColor" opacity="0.3" />
+        </symbol>
+        <symbol id="icon-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+        </symbol>
+        <symbol id="icon-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+            <line x1="2" y1="20" x2="22" y2="20" />
+        </symbol>
+        <symbol id="icon-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" />
+            <line x1="9" y1="6" x2="9" y2="6.01" />
+            <line x1="15" y1="6" x2="15" y2="6.01" />
+            <line x1="9" y1="10" x2="9" y2="10.01" />
+            <line x1="15" y1="10" x2="15" y2="10.01" />
+            <line x1="9" y1="14" x2="9" y2="14.01" />
+            <line x1="15" y1="14" x2="15" y2="14.01" />
+            <path d="M9 18h6v4H9z" />
+        </symbol>
+        <symbol id="icon-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+            <line x1="8" y1="7" x2="16" y2="7" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+        </symbol>
+        <symbol id="icon-utensils" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2" />
+            <path d="M7 2v20" />
+            <path d="M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+        </symbol>
+        <symbol id="icon-elevator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="2" width="18" height="20" rx="2" />
+            <polyline points="8 6 12 10 16 6" />
+            <polyline points="8 18 12 14 16 18" />
+            <line x1="12" y1="10" x2="12" y2="14" />
+        </symbol>
+        <symbol id="icon-ramp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21L21 3" />
+            <polyline points="14 3 21 3 21 10" />
+        </symbol>
+        <symbol id="icon-door" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18" />
+            <path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" />
+            <circle cx="15" cy="12" r="1.5" />
+        </symbol>
+        <symbol id="icon-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+        </symbol>
+        <symbol id="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </symbol>
+        <symbol id="icon-help-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+        </symbol>
+        <symbol id="icon-slash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </symbol>
+    </svg>
+
     <div class="container">
         <div class="header">
             <h1>
-                <span>🤝</span> 互助广场
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-building"/></svg> 互助广场
             </h1>
-            <a href="index.html" class="back-btn">← 返回地图</a>
+            <a href="index.html" class="back-btn">
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-map-pin"/></svg> 返回地图
+            </a>
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" data-type="all">全部</button>
-            <button class="tab-btn" data-type="obstacle">🚧 障碍物</button>
-            <button class="tab-btn" data-type="sos">🆘 SOS求助</button>
-            <button class="tab-btn" data-type="my">📋 我领取的</button>
+            <button class="tab-btn active" data-type="all">
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-building"/></svg> 广场
+            </button>
+            <button class="tab-btn" data-type="obstacle">
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-alert-triangle"/></svg> 路障
+            </button>
+            <button class="tab-btn" data-type="sos">
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-send"/></svg> 求助
+            </button>
+            <button class="tab-btn" data-type="my">
+                <svg class="icon-svg" aria-hidden="true"><use href="#icon-user"/></svg> 我的
+            </button>
         </div>
 
         <div id="taskList"></div>
     </div>
 
+    <!-- 图片放大模态框 -->
+    <div id="imageModal" class="image-modal">
+        <span class="image-modal-close">&times;</span>
+        <img class="image-modal-content" id="modalImage">
+    </div>
+
     <script>
+        // ------ 数据与核心逻辑 -------
         let currentUser = {
             id: 1,
             name: '热心志愿者',
@@ -349,295 +677,135 @@
                 try {
                     const user = JSON.parse(userStr);
                     return { id: user.id, name: user.username || user.nickname || '志愿者', avatar: '👤' };
-                } catch (e) {}
+                } catch (e) { }
             }
             return currentUser;
         }
 
         let tasks = [
             {
-                id: 1,
-                type: 'obstacle',
-                title: '图书馆门口台阶损坏',
-                location: '图书馆正门',
-                lat: 26.8795,
-                lng: 112.5170,
+                id: 1, type: 'obstacle', title: '图书馆门口台阶损坏', location: '图书馆正门', lat: 26.8795, lng: 112.5170,
                 description: '图书馆正门口的台阶有破损，轮椅无法通行，需要维修或设置临时坡道。',
-                photo: 'https://img95.699pic.com/xsj/1s/fz/3v.jpg!/fw/700/watermark/url/L3hzai93YXRlcl9kZXRhaWwyLnBuZw/align/southeast',  // 3:4 竖图
-                status: 'pending',
-                reportTime: '2024-01-15 10:30',
-                reporter: '李同学',
-                claimers: [],
-                comments: [
-                    { id: 1, userId: 2, userName: '王老师', avatar: '👨‍🏫', text: '已反馈给后勤部门，预计3天内处理', time: '2024-01-15 14:20' }
-                ]
+                photo: 'https://img95.699pic.com/xsj/1s/fz/3v.jpg!/fw/700/watermark/url/L3hzai93YXRlcl9kZXRhaWwyLnBuZw/align/southeast',
+                status: 'pending', reportTime: '2024-01-15 10:30', reporter: '李同学', claimers: [],
+                comments: [{ id: 1, userId: 2, userName: '王老师', avatar: '👨‍🏫', text: '已反馈给后勤部门，预计3天内处理', time: '2024-01-15 14:20' }]
             },
             {
-                id: 2,
-                type: 'obstacle',
-                title: '笃行园宿舍电梯故障',
-                location: '笃行园2栋',
-                lat: 26.8824,
-                lng: 112.5191,
+                id: 2, type: 'obstacle', title: '笃行园宿舍电梯故障', location: '笃行园2栋', lat: 26.8824, lng: 112.5191,
                 description: '宿舍电梯已故障3天，停在1楼无法运行。',
-                photo: 'https://tse3.mm.bing.net/th/id/OIP.5VX2Kro-XfUtyQvn-P2DZgHaE7?rs=1&pid=ImgDetMain&o=7&rm=3',  // 3:4 竖图
-                status: 'processing',
-                reportTime: '2024-01-14 09:15',
-                reporter: '陈同学',
-                claimers: [
-                    { id: 4, name: '赵维修', avatar: '🔧', claimedAt: '2024-01-14 10:00' }
-                ],
-                comments: [
-                    { id: 1, userId: 4, userName: '赵维修', avatar: '🔧', text: '已联系物业，明天来检修', time: '2024-01-14 10:05' }
-                ]
+                photo: 'https://tse3.mm.bing.net/th/id/OIP.5VX2Kro-XfUtyQvn-P2DZgHaE7?rs=1&pid=ImgDetMain&o=7&rm=3',
+                status: 'processing', reportTime: '2024-01-14 09:15', reporter: '陈同学',
+                claimers: [{ id: 4, name: '赵维修', avatar: '🔧', claimedAt: '2024-01-14 10:00' }],
+                comments: [{ id: 1, userId: 4, userName: '赵维修', avatar: '🔧', text: '已联系物业，明天来检修', time: '2024-01-14 10:05' }]
             },
             {
-                id: 3,
-                type: 'sos',
-                title: '紧急求助 - 轮椅故障',
-                location: '雨母楼附近',
-                lat: 26.8787,
-                lng: 112.5163,
+                id: 3, type: 'sos', title: '紧急求助 - 轮椅故障', location: '雨母楼附近', lat: 26.8787, lng: 112.5163,
                 description: '我的轮椅轮子卡住了，需要帮助！',
-                photo: 'https://tse2.mm.bing.net/th/id/OIP.uiM8v2YRrG3HYkTU2VFUPgHaE8?rs=1&pid=ImgDetMain&o=7&rm=3',  // 2:1 宽图
-                status: 'pending',
-                reportTime: '2024-01-16 08:45',
-                reporter: '孙爷爷',
-                claimers: [],
-                comments: []
+                photo: 'https://tse2.mm.bing.net/th/id/OIP.uiM8v2YRrG3HYkTU2VFUPgHaE8?rs=1&pid=ImgDetMain&o=7&rm=3',
+                status: 'pending', reportTime: '2024-01-16 08:45', reporter: '孙爷爷', claimers: [], comments: []
             },
             {
-                id: 4,
-                type: 'obstacle',
-                title: '盲道被共享单车占用',
-                location: '南门入口路段',
-                lat: 26.8752,
-                lng: 112.5167,
+                id: 4, type: 'obstacle', title: '盲道被共享单车占用', location: '南门入口路段', lat: 26.8752, lng: 112.5167,
                 description: '南门附近的盲道被大量共享单车占用，视障同学无法正常通行。',
-                photo: null,
-                status: 'pending',
-                reportTime: '2024-01-15 16:20',
-                reporter: '周同学',
-                claimers: [],
-                comments: []
+                photo: null, status: 'pending', reportTime: '2024-01-15 16:20', reporter: '周同学', claimers: [], comments: []
             }
         ];
 
         let currentTab = 'all';
         let userClaimedTasks = [];
 
-        function saveUserClaims() {
-            localStorage.setItem('userClaimedTasks', JSON.stringify(userClaimedTasks));
-        }
-
-        function loadUserClaims() {
-            const saved = localStorage.getItem('userClaimedTasks');
-            if (saved) {
-                userClaimedTasks = JSON.parse(saved);
-            }
-        }
+        function saveUserClaims() { localStorage.setItem('userClaimedTasks', JSON.stringify(userClaimedTasks)); }
+        function loadUserClaims() { const saved = localStorage.getItem('userClaimedTasks'); if (saved) userClaimedTasks = JSON.parse(saved); }
 
         function claimTask(taskId) {
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
-            
             const user = getCurrentUser();
-            
-            if (task.claimers.some(c => c.id === user.id)) {
-                alert('您已经领取过这个任务了');
-                return;
-            }
-            
-            if (task.status === 'done') {
-                alert('这个任务已经完成了');
-                return;
-            }
-            
-            task.claimers.push({
-                id: user.id,
-                name: user.name,
-                avatar: user.avatar,
-                claimedAt: new Date().toLocaleString()
-            });
-            
-            if (task.status === 'pending') {
-                task.status = 'processing';
-            }
-            
-            if (!userClaimedTasks.includes(taskId)) {
-                userClaimedTasks.push(taskId);
-                saveUserClaims();
-            }
-            
+            if (task.claimers.some(c => c.id === user.id)) { alert('您已经领取过这个任务了'); return; }
+            if (task.status === 'done') { alert('这个任务已经完成了'); return; }
+            task.claimers.push({ id: user.id, name: user.name, avatar: user.avatar, claimedAt: new Date().toLocaleString() });
+            if (task.status === 'pending') task.status = 'processing';
+            if (!userClaimedTasks.includes(task.id)) { userClaimedTasks.push(task.id); saveUserClaims(); }
             alert(`✅ 您已成功领取任务「${task.title}」\n请前往地图页面规划路线！`);
             renderTasks();
         }
 
         function addComment(taskId, commentText) {
             if (!commentText.trim()) return;
-            
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
-            
             const user = getCurrentUser();
-            
-            task.comments.push({
-                id: Date.now(),
-                userId: user.id,
-                userName: user.name,
-                avatar: user.avatar,
-                text: commentText.trim(),
-                time: new Date().toLocaleString()
-            });
-            
+            task.comments.push({ id: Date.now(), userId: user.id, userName: user.name, avatar: user.avatar, text: commentText.trim(), time: new Date().toLocaleString() });
             renderTasks();
         }
 
         function navigateToTask(task) {
-            if (!isLoggedIn()) {
-                alert('请先登录后使用导航功能');
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            sessionStorage.setItem('navigateTo', JSON.stringify({
-                lat: task.lat,
-                lng: task.lng,
-                name: task.title,
-                location: task.location
-            }));
-            
+            if (!isLoggedIn()) { alert('请先登录后使用导航功能'); window.location.href = 'login.html'; return; }
+            sessionStorage.setItem('navigateTo', JSON.stringify({ lat: task.lat, lng: task.lng, name: task.title, location: task.location }));
             alert(`🎯 正在规划前往「${task.title}」的路线...`);
             window.location.href = 'index.html';
+        }
+
+        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+
+        function openImageModal(imgSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'flex';
+            modalImg.src = imgSrc;
         }
 
         function renderTasks() {
             const container = document.getElementById('taskList');
             const user = getCurrentUser();
-            
             let filteredTasks = tasks;
-            
-            if (currentTab === 'obstacle') {
-                filteredTasks = tasks.filter(t => t.type === 'obstacle');
-            } else if (currentTab === 'sos') {
-                filteredTasks = tasks.filter(t => t.type === 'sos');
-            } else if (currentTab === 'my') {
-                filteredTasks = tasks.filter(t => userClaimedTasks.includes(t.id) || t.claimers.some(c => c.id === user.id));
-            }
-            
+            if (currentTab === 'obstacle') filteredTasks = tasks.filter(t => t.type === 'obstacle');
+            else if (currentTab === 'sos') filteredTasks = tasks.filter(t => t.type === 'sos');
+            else if (currentTab === 'my') filteredTasks = tasks.filter(t => userClaimedTasks.includes(t.id) || t.claimers.some(c => c.id === user.id));
+
             if (filteredTasks.length === 0) {
-                container.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: #999;"><span style="font-size: 48px;">📭</span><p>暂无任务</p></div>`;
+                container.innerHTML = `<div class="empty-state"><svg class="icon-svg" aria-hidden="true"><use href="#icon-info"/></svg><p>暂无任务，去帮助更多人吧~</p></div>`;
                 return;
             }
-            
+
             let html = '';
-            
-            for (const task of filteredTasks) {
+            filteredTasks.forEach(task => {
                 const isClaimed = task.claimers.some(c => c.id === user.id);
                 const isDone = task.status === 'done';
                 const canClaim = !isClaimed && !isDone && task.status !== 'done';
-                
                 let statusText = task.status === 'pending' ? '待领取' : (task.status === 'processing' ? '处理中' : '已完成');
                 let statusClass = task.status === 'pending' ? 'status-pending' : (task.status === 'processing' ? 'status-processing' : 'status-done');
-                
-                html += `
-                    <div class="task-card">
-                        <div class="task-header">
-                            <span class="task-type ${task.type === 'obstacle' ? 'obstacle' : 'sos'}">${task.type === 'obstacle' ? '🚧 障碍物' : '🆘 SOS求助'}</span>
-                            <span class="task-status ${statusClass}">${statusText}</span>
-                        </div>
-                        <div class="task-body">
-                            <div class="task-title">${escapeHtml(task.title)}</div>
-                            <div class="task-location">📍 ${escapeHtml(task.location)}</div>
-                            <div class="task-desc">${escapeHtml(task.description)}</div>
-                `;
-                
+                const typeIcon = task.type === 'obstacle' ? '#icon-alert-triangle' : '#icon-send';
+                const typeLabel = task.type === 'obstacle' ? '路障' : 'SOS求助';
+
+                html += `<div class="task-card"><div class="task-header"><span class="task-type ${task.type === 'obstacle' ? 'obstacle' : 'sos'}"><svg class="icon-svg" aria-hidden="true"><use href="${typeIcon}"/></svg> ${typeLabel}</span><span class="task-status ${statusClass}">${statusText}</span></div><div class="task-body"><div class="task-title">${escapeHtml(task.title)}</div><div class="task-location"><svg class="icon-svg" aria-hidden="true"><use href="#icon-map-pin"/></svg> ${escapeHtml(task.location)}</div><div class="task-desc">${escapeHtml(task.description)}</div>`;
                 if (task.photo) {
-                    html += `<div class="task-photo"><img src="${task.photo}" alt="${escapeHtml(task.title)}"></div>`;
+                    html += `<div class="task-photo"><img src="${task.photo}" alt="${escapeHtml(task.title)}" loading="lazy" onclick="openImageModal('${task.photo}')"></div>`;
                 } else {
-                    html += `<div class="no-photo">📷 暂无现场照片</div>`;
+                    html += `<div class="no-photo"><svg class="icon-svg" aria-hidden="true"><use href="#icon-slash"/></svg> 暂未上传现场照片</div>`;
                 }
-                
-                html += `
-                            <div class="task-stats">
-                                <span>📅 ${task.reportTime}</span>
-                                <span>👤 上报人: ${task.reporter}</span>
-                                <span>💬 ${task.comments.length} 条评论</span>
-                            </div>
-                `;
-                
-                if (task.claimers.length > 0) {
-                    html += `<div class="claimers-list">${task.claimers.map(c => `<span class="claimer-tag">${c.avatar} ${escapeHtml(c.name)} 已领取</span>`).join('')}</div>`;
-                }
-                
-                if (canClaim) {
-                    html += `<button class="claim-btn" onclick="claimTask(${task.id})">🤝 领取任务并前往处理</button>`;
-                } else if (isClaimed && !isDone) {
-                    html += `<button class="claim-btn" onclick='navigateToTask(${JSON.stringify(task)})'>🗺️ 导航前往处理</button>`;
-                }
-                
-                html += `
-                    <div class="comments-section">
-                        <div class="comment-list">
-                `;
-                
-                for (const comment of task.comments) {
-                    html += `
-                        <div class="comment-item">
-                            <div class="comment-avatar">${comment.avatar}</div>
-                            <div class="comment-content">
-                                <div class="comment-name">${escapeHtml(comment.userName)}</div>
-                                <div class="comment-text">${escapeHtml(comment.text)}</div>
-                                <div class="comment-time">${comment.time}</div>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                html += `
-                        </div>
-                        <div class="comment-input-area">
-                            <input type="text" class="comment-input" id="comment-input-${task.id}" placeholder="写下你的评论..." maxlength="200">
-                            <button class="comment-submit" onclick="addComment(${task.id}, document.getElementById('comment-input-${task.id}').value); document.getElementById('comment-input-${task.id}').value = ''">发送</button>
-                        </div>
-                    </div>
-                `;
-                
-                html += `</div></div>`;
-            }
-            
+                html += `<div class="task-stats"><span><svg class="icon-svg" aria-hidden="true"><use href="#icon-info"/></svg> ${task.reportTime}</span><span><svg class="icon-svg" aria-hidden="true"><use href="#icon-user"/></svg> 上报: ${task.reporter}</span><span><svg class="icon-svg" aria-hidden="true"><use href="#icon-book"/></svg> ${task.comments.length} 条回应</span></div>`;
+                if (task.claimers.length > 0) html += `<div class="claimers-list">${task.claimers.map(c => `<span class="claimer-tag">${c.avatar || '🧑'} ${escapeHtml(c.name)} 已认领</span>`).join('')}</div>`;
+                if (canClaim) html += `<button class="claim-btn" data-task-id="${task.id}" data-action="claim"><svg class="icon-svg" aria-hidden="true"><use href="#icon-wheelchair"/></svg> 领取任务并前往处理</button>`;
+                else if (isClaimed && !isDone) html += `<button class="claim-btn" data-task-id="${task.id}" data-action="navigate" data-task='${JSON.stringify(task).replace(/'/g, "&#39;")}'><svg class="icon-svg" aria-hidden="true"><use href="#icon-map-pin"/></svg> 导航前往处理</button>`;
+                else if (!isClaimed && task.status === 'processing') html += `<div style="margin: 8px 0 0; font-size:12px; color:#6c6f78; text-align:center;"><svg class="icon-svg" aria-hidden="true"><use href="#icon-info"/></svg> 已有志愿者处理中，可留言关注进展</div>`;
+                else if (isDone) html += `<div style="margin: 8px 0 0; font-size:13px; color:#2b8c4a; text-align:center;"><svg class="icon-svg" aria-hidden="true"><use href="#icon-wheelchair"/></svg> 该任务已完成，感谢关注无障碍环境</div>`;
+                html += `<div class="comments-section">`;
+                if (task.comments.length > 0) task.comments.forEach(c => { html += `<div class="comment-item"><div class="comment-avatar">${c.avatar || '💬'}</div><div class="comment-content"><div class="comment-name">${escapeHtml(c.userName)}</div><div class="comment-text">${escapeHtml(c.text)}</div><div class="comment-time">${escapeHtml(c.time)}</div></div></div>`; });
+                else html += `<div style="font-size:12px; color:#aaa; text-align:center; padding:6px 0;">暂无留言，成为第一个回应的人~</div>`;
+                html += `<div class="comment-input-area"><input type="text" class="comment-input" id="comment-input-${task.id}" placeholder="写下你的评论..." maxlength="200" autocomplete="off"><button class="comment-submit" data-task-id="${task.id}" data-action="comment"><svg class="icon-svg" aria-hidden="true"><use href="#icon-send"/></svg> 发送</button></div></div></div></div>`;
+            });
             container.innerHTML = html;
+
+            container.querySelectorAll('.claim-btn[data-action="claim"]').forEach(btn => { const tid = parseInt(btn.dataset.taskId); btn.addEventListener('click', () => claimTask(tid)); });
+            container.querySelectorAll('.claim-btn[data-action="navigate"]').forEach(btn => { const tdata = btn.dataset.task; if (tdata) { try { const tobj = JSON.parse(tdata); btn.addEventListener('click', () => navigateToTask(tobj)); } catch(e) {} } });
+            container.querySelectorAll('.comment-submit').forEach(btn => { const tid = parseInt(btn.dataset.taskId); btn.addEventListener('click', () => { const inp = document.getElementById(`comment-input-${tid}`); addComment(tid, inp?.value || ''); if(inp) inp.value = ''; }); });
         }
-        
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-        
-        function initTabs() {
-            const tabs = document.querySelectorAll('.tab-btn');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    currentTab = tab.dataset.type;
-                    renderTasks();
-                });
-            });
-        }
-        
-        loadUserClaims();
-        initTabs();
-        renderTasks();
-        
-        window.claimTask = claimTask;
-        window.addComment = addComment;
-        window.navigateToTask = navigateToTask;
+
+        function initTabs() { document.querySelectorAll('.tab-btn').forEach(tab => { tab.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active')); tab.classList.add('active'); currentTab = tab.dataset.type; renderTasks(); }); }); }
+
+        loadUserClaims(); initTabs(); renderTasks();
+        window.openImageModal = openImageModal;
     </script>
 </body>
 
